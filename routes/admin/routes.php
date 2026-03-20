@@ -94,6 +94,7 @@ use App\Http\Controllers\Admin\ThirdParty\SocialLoginSettingsController;
 use App\Http\Controllers\Admin\Deliveryman\DeliverymanWithdrawController;
 use App\Http\Controllers\Admin\Settings\VendorRegistrationReasonController;
 use App\Http\Controllers\Admin\Deliveryman\DeliveryManCashCollectController;
+use App\Http\Controllers\Admin\AdminAdRequestController;
 use App\Http\Controllers\Admin\Settings\StorageConnectionSettingsController;
 use App\Http\Controllers\Admin\Settings\VendorRegistrationSettingController;
 use App\Http\Controllers\Admin\Notification\PushNotificationSettingsController;
@@ -1164,4 +1165,16 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
             });
         });
     });
+
+    Route::group(['prefix' => 'ad-requests', 'as' => 'ad-requests.', 'middleware' => ['module:promotion_management']], function() {
+    Route::controller(\App\Http\Controllers\Admin\AdminAdRequestController::class)->group(function() {
+        Route::get('/', 'index')->name('index');
+        Route::get('{id}', 'show')->name('show');
+        Route::post('{id}/approve', 'approve')->name('approve');
+        Route::post('{id}/reject', 'reject')->name('reject');
+        Route::delete('{id}', 'destroy')->name('destroy');
+    });
+});
+
+
 });

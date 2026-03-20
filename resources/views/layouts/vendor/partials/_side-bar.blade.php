@@ -56,7 +56,17 @@
                                     {{ translate('dashboard') }}
                                 </span>
                             </a>
-                        </li>
+  <li class="nav-item {{ Request::is('vendor/new-request*') ? 'active' : '' }}">
+    <a class="js-navbar-vertical-aside-menu-link nav-link"
+       href="{{ url('/vendor/new-request') }}" title="{{ translate('New Ad Request') }}">
+        <i class="tio-add-circle-outlined nav-icon"></i>
+        <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+            {{ translate('New Ad Request') }}
+        </span>
+    </a>
+</li>
+
+
                         @php($seller = auth('seller')->user())
                         @php($sellerId = $seller['id'])
                         @php($sellerPOS=getWebConfig('seller_pos'))

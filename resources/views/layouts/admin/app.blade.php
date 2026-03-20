@@ -5,13 +5,15 @@
     <meta charset="utf-8">
     <meta name="_token" content="{{ csrf_token() }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
     <meta name="robots" content="nofollow, noindex">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <title>@yield('title')</title>
     <link rel="shortcut icon"
           href="{{ getStorageImages(path: getWebConfig(name: 'company_fav_icon'), type: 'backend-logo') }}">
+
+    {{-- Load Bootstrap 5 CSS --}}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     @include("layouts.admin.partials._style-partials")
 
@@ -52,10 +54,18 @@
 @include('layouts.admin.partials._translator-for-js')
 @include("layouts.admin.partials._translated-message-container")
 @include("layouts.admin.partials._routes-list-container")
+
+{{-- Load jQuery first --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+{{-- Then load your admin scripts --}}
 @include("layouts.admin.partials._script-partials")
 
-@stack('script')
+{{-- Then load Bootstrap 5 JS --}}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+{{-- Your custom scripts --}}
+@stack('script')
 
 </body>
 

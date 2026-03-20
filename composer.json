@@ -71,6 +71,7 @@
     "autoload": {
         "files": [
             "app/Library/Constant.php",
+            "app/helpers.php",
             "app/Library/Responses.php",
             "app/Utils/BackEndHelper.php",
             "app/Utils/BrandManager.php",
@@ -125,7 +126,9 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": [
+                 "amirami/localizator"
+            ]
         }
     },
     "config": {

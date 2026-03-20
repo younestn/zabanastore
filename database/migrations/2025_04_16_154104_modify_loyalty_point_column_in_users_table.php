@@ -11,9 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->decimal('loyalty_point', 18, 4)->after('wallet_balance')->default(0)->nullable()->change();
-        });
+        // Check if the column exists first
+        if (!Schema::hasColumn('users', 'loyalty_point')) {
+            // If it doesn't exist, CREATE it
+            Schema::table('users', function (Blueprint $table) {
+                $table->decimal('loyalty_point', 18, 4)->after('wallet_balance')->default(0)->nullable();
+            });
+        } else {
+            // If it exists, MODIFY it (though this shouldn't happen since it doesn't exist)
+            Schema::table('users', function (Blueprint $table) {
+                $table->decimal('loyalty_point', 18, 4)->after('wallet_balance')->default(0)->nullable()->change();
+            });
+        }
     }
 
     /**
@@ -21,8 +30,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('loyalty_point');
-        });
+        // Only drop the column if it exists
+        if (Schema::hasColumn('users', 'loyalty_point')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('loyalty_point');
+            });
+        }
     }
 };

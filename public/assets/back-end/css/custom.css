@@ -2023,6 +2023,21 @@ input[name="gateway_image"] {
     object-fit: cover;
 }
 
-[dir=rtl] select {
-    background-size: 10px 10px;
+[dir="rtl"] .file-upload-wrapper {
+    direction: rtl;
+    text-align: right;
 }
+[dir="rtl"] .file-upload-label {
+    direction: rtl;
+    text-align: right;
+}
+/* خاص جداً بأسلوب إخفاء input في RTL */
+[dir="rtl"] .file-upload {
+    left: unset !important;
+    right: -9999px !important;
+}
+[dir="rtl"] .file-upload-label span {
+    display: block;
+    text-align: right;
+}
+

@@ -48,155 +48,64 @@
                         <i class="fi fi-rr-globe fs-18"></i>
                     </a>
                 </li>
-
-                <li class="nav-item">
-                    @php($local = session()->has('local') ? session('local') : 'en')
-                    @php($lang = \App\Models\BusinessSetting::where('type', 'language')->first())
-                    <div class="topbar-text dropdown">
-                        <a class="btn-icon topbar-link" href="javascript:" data-bs-toggle="dropdown">
-                            @foreach (json_decode($lang['value'], true) as $data)
-                                @if ($data['code'] == $local)
-                                    <img width="20"
-                                        src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
-                                        alt="{{ $data['name'] }}">
-                                @endif
-                            @endforeach
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            @foreach (json_decode($lang['value'], true) as $key => $data)
-                                @if ($data['status'] == 1)
-                                    <li class="change-language" data-action="{{ route('change-language') }}"
-                                        data-language-code="{{ $data['code'] }}">
-                                        <a class="d-flex gap-2 align-items-center justify-content-between dropdown-item {{ $data['code'] == $local ? 'active' : ':' }}"
-                                            href="javascript:">
-                                            <div class="d-flex gap-2 align-items-center">
-                                                <img width="20"
-                                                    src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
-                                                    alt="{{ $data['name'] }}" />
-                                                <span class="text-capitalize">{{ $data['name'] }}</span>
-                                            </div>
-                                            {!! $data['code'] == $local ? '<i class="fi fi-rr-check"></i>' : '' !!}
-                                        </a>
-                                    </li>
-                                @endif
-                            @endforeach
-                        </ul>
-                    </div>
-                </li>
-
-                @if (\App\Utils\Helpers::module_permission_check('order_management'))
-                    <li class="dropdown nav-item">
-                        <a class="btn-icon" href="{{ route('admin.orders.list', ['status' => 'pending']) }}"
-                            data-bs-toggle="dropdown">
-                            @php($pendingOrderCount = \App\Models\Order::where('order_status', 'pending')->count())
-                            <div class="position-relative">
-                                <i class="fi fi-sr-shopping-cart fs-18"></i>
-                                @if ($pendingOrderCount > 0)
-                                    <span
-                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $pendingOrderCount > 99 ? '99+' : $pendingOrderCount }}
-                                        <span class="visually-hidden">{{ translate('pending_Orders') }}</span>
-                                    </span>
-                                @endif
+<!-- Language Dropdown - Fixed Version -->
+<li class="nav-item">
+    @php($local = session()->has('local') ? session('local') : 'en')
+    @php($lang = \App\Models\BusinessSetting::where('type', 'language')->first())
+    <div class="dropdown">
+        <button class="btn-icon topbar-link border-0 bg-transparent dropdown-toggle" 
+                type="button" 
+                id="languageDropdown"
+                data-bs-toggle="dropdown" 
+                data-bs-auto-close="true"
+                aria-expanded="false">
+            @foreach (json_decode($lang['value'], true) as $data)
+                @if ($data['code'] == $local)
+                    <img width="20"
+                        src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
+                        alt="{{ $data['name'] }}">
+                @endif
+            @endforeach
+        </button>
+        
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
+            @foreach (json_decode($lang['value'], true) as $key => $data)
+                @if ($data['status'] == 1)
+                    <li class="change-language" 
+                        data-action="{{ route('change-language') }}"
+                        data-language-code="{{ $data['code'] }}">
+                        <a class="dropdown-item d-flex gap-2 align-items-center justify-content-between {{ $data['code'] == $local ? 'active' : '' }}"
+                           href="javascript:void(0)">
+                            <div class="d-flex gap-2 align-items-center">
+                                <img width="20"
+                                    src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
+                                    alt="{{ $data['name'] }}" />
+                                <span class="text-capitalize">{{ $data['name'] }}</span>
                             </div>
+                            {!! $data['code'] == $local ? '<i class="fi fi-rr-check"></i>' : '' !!}
                         </a>
-                        <div class="dropdown-menu dropdown-cart dropdown-menu-end">
-                            <div class="d-flex flex-column gap-2 px-3 pb-2">
-                                <button type="button"
-                                    class="d-flex d-sm-none btn-close border-0 btn-circle w-20 h-20 p-1 fs-10 bg-section2 shadow-none position-absolute top-0 inset-inline-end-0 m-2"
-                                    data-bs-dismiss="modal" aria-label="Close"></button>
-                                <div
-                                    class="d-flex flex-wrap flex-column flex-sm-row column-gap-1 row-gap-3 justify-content-between py-2">
-                                    <div class="d-flex gap-2 align-items-center">
-                                        <h4 class="text-capitalize mb-0">{{ translate('total_orders') }}</h4>
-                                        <span class="text-body-light">
-                                            ({{ \App\Models\Order::where('order_status', 'pending')->count() }})
-                                        </span>
-                                    </div>
-                                    <a href="{{ route('admin.orders.list', ['status' => 'pending']) }}"
-                                        class="text-primary d-flex gap-1 lh-1">{{ translate('view_all') }} <i
-                                            class="fi fi-rr-arrow-small-right"></i></a>
-                                </div>
-                                <div class="overflow-auto max-h-65vh bg-body rounded">
-                                    <div class="py-2 bg-body rounded">
-                                        <table class="table bg-transparent table-borderless align-middle">
-                                            <tbody>
-                                                @foreach ($last5Orders as $order)
-                                                    <tr>
-                                                        <td>
-                                                            <div>
-                                                                <div
-                                                                    class="d-flex align-items-center flex-shrink-0 w-100px">
-                                                                    @php($productImages = [])
-                                                                    @foreach ($order->details as $details)
-                                                                        @if (
-                                                                            $details?->productAllStatus?->thumbnail_full_url &&
-                                                                                $details?->productAllStatus?->thumbnail_full_url['status'] === 200)
-                                                                            @php($productImages[] = $details?->productAllStatus?->thumbnail_full_url)
-                                                                        @endif
-                                                                    @endforeach
-                                                                    @if (count($productImages))
-                                                                        @foreach ($productImages as $imageKey => $productImage)
-                                                                            <div
-                                                                                class="w-100 ms-n-6px dropdown-cart-image {{ $imageKey == 2 ? 'position-relative' : '' }} {{ $imageKey > 2 ? 'd-none' : '' }}">
-                                                                                <img class="border bg-white rounded object-fit-cover w-100 shadow-left"
-                                                                                    height="36" alt="product image"
-                                                                                    src="{{ getStorageImages(path: $productImage, type: 'backend-product') }}">
-                                                                                @if ($imageKey == 2 && count($productImages) > 3)
-                                                                                    <div class="extra-images rounded">
-                                                                                        <span class="extra-image-count">
-                                                                                            +
-                                                                                            {{ count($productImages) - 3 }}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                @endif
-                                                                            </div>
-                                                                        @endforeach
-                                                                    @else
-                                                                        <img class="border bg-white rounded object-fit-cover w-100"
-                                                                            height="36"
-                                                                            src="https://placehold.co/40x40"
-                                                                            alt="placeholder">
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <div class="d-flex flex-column gap-1 fs-12">
-                                                                <div class="d-flex gap-2 align-items-center">
-                                                                    <div class="min-w-80 text-start">
-                                                                        {{ translate('Order_id') }}</div>
-                                                                    :
-                                                                    <span class="text-dark">{{ $order->id }}</span>
-                                                                </div>
-                                                                <div class="d-flex gap-2 align-items-center">
-                                                                    <div class="min-w-80 text-start">
-                                                                        {{ translate('Order_Amount') }}</div>
-                                                                    :
-                                                                    <span class="text-dark">
-                                                                        {{ setCurrencySymbol(amount: usdToDefaultCurrency(amount: $order->order_amount), currencyCode: getCurrencyCode()) }}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <div class="d-flex justify-content-end">
-                                                                <a href="{{ route('admin.orders.details', ['id' => $order['id']]) }}"
-                                                                    class="btn btn-outline-primary btn-square">
-                                                                    <i class="fi fi-sr-eye"></i>
-                                                                </a>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </li>
                 @endif
+            @endforeach
+        </ul>
+    </div>
+</li>
+            @if (\App\Utils\Helpers::module_permission_check('order_management'))
+    <li class="nav-item">
+        <a class="btn-icon" href="{{ route('admin.orders.list', ['status' => 'pending']) }}">
+            @php($pendingOrderCount = \App\Models\Order::where('order_status', 'pending')->count())
+            <div class="position-relative">
+                <i class="fi fi-sr-shopping-cart fs-18"></i>
+                @if ($pendingOrderCount > 0)
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ $pendingOrderCount > 99 ? '99+' : $pendingOrderCount }}
+                        <span class="visually-hidden">{{ translate('pending_Orders') }}</span>
+                    </span>
+                @endif
+            </div>
+        </a>
+    </li>
+@endif
 
                 @if (\App\Utils\Helpers::module_permission_check('support_section'))
                     <li class="nav-item">
@@ -215,48 +124,56 @@
                     </li>
                 @endif
 
-                <li class="nav-item">
-                    <div class="dropdown">
-                        <a class="d-flex" href="javascript:" data-bs-toggle="dropdown">
-                            <img class="rounded-circle border border-2 min-w-36 aspect-1" width="36"
-                                src="{{ getStorageImages(path: auth('admin')->user()->image_full_url, type: 'backend-profile') }}"
-                                alt="{{ translate('image_description') }}">
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end">
-                            <div class="dropdown-item">
-                                <div class="media gap-2 align-items-center">
-                                    <img class="rounded-circle border border-2 aspect-1" width="40"
-                                        src="{{ getStorageImages(path: auth('admin')->user()->image_full_url, type: 'backend-profile') }}"
-                                        alt="{{ translate('image_description') }}">
+             <li class="nav-item">
+    <div class="dropdown">
+        <!-- Fixed: Use button for better dropdown compatibility -->
+        <button class="btn p-0 border-0 bg-transparent" 
+                type="button" 
+                data-bs-toggle="dropdown" 
+                aria-expanded="false">
+            <img class="rounded-circle border border-2 min-w-36 aspect-1" width="36"
+                 src="{{ getStorageImages(path: auth('admin')->user()->image_full_url, type: 'backend-profile') }}"
+                 alt="{{ translate('image_description') }}">
+        </button>
+        
+        <div class="dropdown-menu dropdown-menu-end shadow-lg">
+            <div class="px-3 py-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <img class="rounded-circle border border-2 aspect-1" width="40"
+                         src="{{ getStorageImages(path: auth('admin')->user()->image_full_url, type: 'backend-profile') }}"
+                         alt="{{ translate('image_description') }}">
 
-                                    <div class="media-body overflow-hidden w-100">
-                                        <h4 class="fw-bold max-w-200 mb-1 text-truncate">
-                                            {{ auth('admin')->user()->name }}
-                                        </h4>
-                                        <p class="fs-12 text-body-light fw-medium max-w-200 text-truncate">
-                                            {{ ucwords(auth('admin')->user()?->role?->name) ?? '' }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item media gap-2 align-items-center"
-                                href="{{ route('admin.profile.update', ['id' => auth('admin')->user()->id]) }}">
-                                <i class="fi fi-rr-settings text-body-light"></i>
-                                <span class="text-truncate media-body" title="{{ translate('settings') }}">
-                                    {{ translate('settings') }}
-                                </span>
-                            </a>
-                            <a class="dropdown-item media gap-2 align-items-center" href="javascript:"
-                                data-bs-toggle="modal" data-bs-target="#sign-out-modal">
-                                <i class="fi fi-sr-sign-out-alt text-body-light"></i>
-                                <span class="text-truncate media-body" title="{{ translate('logout') }}">
-                                    {{ translate('logout') }}
-                                </span>
-                            </a>
-                        </div>
+                    <div class="overflow-hidden w-100">
+                        <h4 class="fw-bold mb-1 text-truncate" style="max-width: 200px;">
+                            {{ auth('admin')->user()->name }}
+                        </h4>
+                        <p class="fs-12 text-body-light fw-medium text-truncate" style="max-width: 200px;">
+                            {{ ucwords(auth('admin')->user()?->role?->name) ?? '' }}
+                        </p>
                     </div>
-                </li>
+                </div>
+            </div>
+            
+            <div class="dropdown-divider"></div>
+            
+            <a class="dropdown-item d-flex gap-2 align-items-center"
+               href="{{ route('admin.profile.update', ['id' => auth('admin')->user()->id]) }}">
+                <i class="fi fi-rr-settings text-body-light"></i>
+                <span class="text-truncate" style="max-width: 200px;">
+                    {{ translate('settings') }}
+                </span>
+            </a>
+            
+            <a class="dropdown-item d-flex gap-2 align-items-center" href="javascript:"
+               data-bs-toggle="modal" data-bs-target="#sign-out-modal">
+                <i class="fi fi-sr-sign-out-alt text-body-light"></i>
+                <span class="text-truncate" style="max-width: 200px;">
+                    {{ translate('logout') }}
+                </span>
+            </a>
+        </div>
+    </div>
+</li>
             </ul>
         </div>
     </div>
@@ -518,5 +435,97 @@
         $('#advance-search-input-global').on('input focus', function() {
             currentIndex = -1;
         });
+        // Language change function - Enhanced with better error handling
+function changeLanguage(languageCode) {
+    // Show loading state
+    const button = document.getElementById('languageDropdown');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fi fi-rr-spinner-third fa-spin"></i>';
+    button.disabled = true;
+    
+    $.ajax({
+        type: 'POST',
+        url: '{{ route("change-language") }}',
+        data: {
+            'local': languageCode,
+            '_token': '{{ csrf_token() }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                window.location.reload();
+            } else {
+                // Restore button state on failure
+                button.innerHTML = originalContent;
+                button.disabled = false;
+                console.error('Language change failed:', response.message || 'Unknown error');
+            }
+        },
+        error: function(xhr, status, error) {
+            // Restore button state on error
+            button.innerHTML = originalContent;
+            button.disabled = false;
+            console.error('Language change failed:', error);
+            
+            // Fallback: try to reload anyway
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    });
+}
+
+$(document).ready(function() {
+    // Enhanced Bootstrap dropdown initialization
+    const dropdownElementList = [].slice.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'));
+    const dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl, {
+            autoClose: true,
+            boundary: 'viewport'
+        });
+    });
+    
+    // Debug: Check if Bootstrap is loaded
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap JavaScript is not loaded!');
+    }
+    
+    // Debug: Log dropdown initialization
+    console.log('Dropdowns initialized:', dropdownList.length);
+    
+    // Ensure dropdowns work on mobile
+    $('.dropdown-toggle').on('click', function(e) {
+        const dropdown = bootstrap.Dropdown.getInstance(this) || new bootstrap.Dropdown(this);
+        if (!$(this).next('.dropdown-menu').hasClass('show')) {
+            dropdown.show();
+        }
+    });
+    
+    // Prevent dropdown menu from closing when clicking inside (except on links)
+    $('.dropdown-menu').on('click', function(e) {
+        if (!$(e.target).closest('a').length) {
+            e.stopPropagation();
+        }
+    });
+});
     </script>
 @endpush
+
+<style>
+@media (max-width: 768px) {
+    .dropdown-menu {
+        position: absolute !important;
+        transform: none !important;
+        left: auto !important;
+        right: 0 !important;
+    }
+}
+
+.dropdown-toggle::after {
+    display: none; /* Hide default Bootstrap arrow if you don't want it */
+}
+
+.dropdown-item.active {
+    background-color: var(--bs-primary);
+    color: white;
+}
+</style>

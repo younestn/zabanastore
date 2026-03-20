@@ -12,6 +12,7 @@ use App\Http\Controllers\Customer\SystemController;
 use App\Http\Controllers\Web\CartController;
 use App\Http\Controllers\Web\ChattingController;
 use App\Http\Controllers\Web\CouponController;
+
 use App\Http\Controllers\Web\DigitalProductDownloadController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\ProductCompareController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\Payment_Methods\StripePaymentController;
 use App\Http\Controllers\Payment_Methods\PaymobController;
 use App\Http\Controllers\Payment_Methods\FlutterwaveV3Controller;
 use App\Http\Controllers\Payment_Methods\PaytmController;
+use App\Http\Controllers\RewardPointController;
 use App\Http\Controllers\Payment_Methods\PaypalPaymentController;
 use App\Http\Controllers\Payment_Methods\PaytabsController;
 use App\Http\Controllers\Payment_Methods\LiqPayController;
@@ -43,6 +45,14 @@ use App\Http\Controllers\Payment_Methods\SenangPayController;
 use App\Http\Controllers\Payment_Methods\MercadoPagoController;
 use App\Http\Controllers\Payment_Methods\BkashPaymentController;
 use App\Http\Controllers\Payment_Methods\PaystackController;
+use App\Http\Controllers\TestController;
+use App\Http\Controllers\VendorShippingListController;
+use App\Http\Controllers\Admin\AdminAdRequestController;
+
+
+
+
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -53,6 +63,28 @@ use App\Http\Controllers\Payment_Methods\PaystackController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+// GET route for the form page
+Route::get('/vendor/new-request', [TestController::class, 'index'])
+    ->name('vendor.vendor1.test');
+    
+Route::get('/vendor/shipping-list', [VendorShippingListController::class, 'index'])
+    ->name('vendor.vendor2.ship');
+
+
+Route::put('admin/ad-requests/{ad_request}', [AdminAdRequestController::class, 'update'])->name('admin.ad-requests.update');
+    
+
+// POST route for form submission
+Route::post('/vendor/ad-request/store', [TestController::class, 'storeAdRequest'])
+    ->name('vendor.ad-request.store');
+
+// Debug route (optional)
+Route::get('/test-shop-name', function () {
+    $shopName = getInHouseShopConfig(key: 'name');
+    dd($shopName);
+});
+
 Route::get('/image-proxy', function () {
     $url = request('url');
     if (!$url) {
@@ -67,6 +99,9 @@ Route::get('/image-proxy', function () {
 Route::controller(WebController::class)->group(function () {
     Route::get('maintenance-mode', 'maintenance_mode')->name('maintenance-mode');
 });
+
+Route::get('/test-controller', [TestController::class, 'index'])->name('test.controller');
+
 
 Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestCheck']], function () {
     Route::group(['prefix' => 'product-compare', 'as' => 'product-compare.'], function () {
@@ -359,7 +394,8 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         });
 
         Route::group(['prefix' => 'reward-points', 'as' => 'reward-points.', 'middleware' => ['auth:customer']], function () {
-            Route::get('convert', 'RewardPointController@convert')->name('convert');
+         Route::get('convert', [RewardPointController::class, "convert"])->name("convert");
+
         });
     });
 });

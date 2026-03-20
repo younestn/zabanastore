@@ -1,5 +1,4 @@
 <?php
-
 use App\Enums\ViewPaths\Vendor\Cart;
 use App\Enums\ViewPaths\Vendor\CategoryShippingCost;
 use App\Enums\ViewPaths\Vendor\Chatting;
@@ -24,6 +23,7 @@ use App\Http\Controllers\Vendor\Auth\LoginController;
 use App\Enums\ViewPaths\Vendor\Order;
 use App\Http\Controllers\Vendor\Auth\RegisterController;
 use App\Http\Controllers\Vendor\DashboardController;
+use App\Http\Controllers\Vendor\VendorAdRequestController;
 use App\Http\Controllers\Vendor\ChattingController;
 use App\Http\Controllers\Vendor\Coupon\CouponController;
 use App\Http\Controllers\Vendor\CustomerController;
@@ -44,6 +44,7 @@ use App\Http\Controllers\Vendor\Shipping\CategoryShippingCostController;
 use App\Http\Controllers\Vendor\Shipping\ShippingMethodController;
 use App\Http\Controllers\Vendor\Shipping\ShippingTypeController;
 use App\Http\Controllers\Vendor\ShopController;
+use App\Http\Controllers\Vendor\ReportController;
 use App\Http\Controllers\Vendor\SystemController;
 use App\Http\Controllers\Vendor\WithdrawController;
 use Illuminate\Support\Facades\Route;
@@ -54,7 +55,6 @@ use App\Http\Controllers\Vendor\OrderReportController;
 use App\Http\Controllers\Vendor\VendorPaymentInfoController;
 
 Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], function () {
-
     Route::group(['prefix' => 'vendor', 'as' => 'vendor.'], function () {
         /* authentication */
         Route::group(['prefix' => 'auth', 'as' => 'auth.'], function () {
@@ -159,7 +159,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::delete('delete-restock/{id}', 'deleteRestock')->name('restock-delete');
                 });
             });
-
             Route::group(['prefix' => 'orders', 'as' => 'orders.'], function () {
                 Route::controller(OrderController::class)->group(function () {
                     Route::get(Order::LIST[URI] . '/{status}', 'index')->name('list');
@@ -176,14 +175,12 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post(Order::UPDATE_STATUS[URI], 'updateStatus')->name('status');
                 });
             });
-
             Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
                 Route::controller(CustomerController::class)->group(function () {
                     Route::get(Customer::LIST[URI], 'getList')->name('list');
                     Route::post(Customer::ADD[URI], 'add')->name('add');
                 });
             });
-
             Route::group(['prefix' => 'reviews', 'as' => 'reviews.'], function () {
                 Route::controller(ReviewController::class)->group(function () {
                     Route::get(Review::INDEX[URI], 'index')->name('index');
@@ -192,7 +189,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post(Review::REVIEW_REPLY[URI], 'addReviewReply')->name('add-review-reply');
                 });
             });
-
             Route::group(['prefix' => 'coupon', 'as' => 'coupon.'], function () {
                 Route::controller(CouponController::class)->group(function () {
                     Route::get(Coupon::INDEX[URI], 'index')->name('index');
@@ -205,7 +201,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get(Coupon::EXPORT[URI], 'exportList')->name('export');
                 });
             });
-
             Route::group(['prefix' => 'clearance-sale', 'as' => 'clearance-sale.'], function () {
                 Route::controller(ClearanceSaleController::class)->group(function () {
                     Route::get(ClearanceSale::LIST[URI], 'index')->name('index');
@@ -220,7 +215,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post(ClearanceSale::UPDATE_DISCOUNT[URI], 'updateDiscountAmount')->name('update-discount');
                 });
             });
-
             Route::group(['prefix' => 'messages', 'as' => 'messages.'], function () {
                 Route::controller(ChattingController::class)->group(function () {
                     Route::get(Chatting::INDEX[URI] . '/{type}', 'index')->name('index');
@@ -229,11 +223,9 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get(Chatting::NEW_NOTIFICATION[URI], 'getNewNotification')->name('new-notification');
                 });
             });
-
             Route::group(['prefix' => 'notification', 'as' => 'notification.'], function () {
                 Route::post(Notification::INDEX[URI], [NotificationController::class, 'getNotificationModalView'])->name('index');
             });
-
             /* DeliveryMan */
             Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
                 Route::controller(DeliveryManController::class)->group(function () {
@@ -247,7 +239,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::delete(DeliveryMan::DELETE[URI] . '/{id}', 'delete')->name('delete');
                     Route::get(DeliveryMan::RATING[URI] . '/{id}', 'getRatingView')->name('rating');
                 });
-
                 Route::group(['prefix' => 'wallet', 'as' => 'wallet.'], function () {
                     Route::controller(DeliveryManWalletController::class)->group(function () {
                         Route::get(DeliveryManWallet::INDEX[URI] . '/{id}', 'index')->name('index');
@@ -258,7 +249,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                         Route::post(DeliveryManWallet::CASH_COLLECT[URI] . '/{id}', 'collectCash');
                     });
                 });
-
                 Route::group(['prefix' => 'withdraw', 'as' => 'withdraw.'], function () {
                     Route::controller(DeliveryManWithdrawController::class)->group(function () {
                         Route::get(DeliveryManWithdraw::INDEX[URI], 'index')->name('index');
@@ -268,7 +258,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                         Route::any(DeliveryManWithdraw::EXPORT[URI], 'exportList')->name('export');
                     });
                 });
-
                 Route::group(['prefix' => 'emergency-contact', 'as' => 'emergency-contact.'], function () {
                     Route::controller(EmergencyContactController::class)->group(function () {
                         Route::get('index', 'index')->name('index');
@@ -280,7 +269,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     });
                 });
             });
-
             Route::group(['prefix' => 'profile', 'as' => 'profile.'], function () {
                 Route::controller(ProfileController::class)->group(function () {
                     Route::get(Profile::INDEX[URI], 'index')->name('index');
@@ -291,7 +279,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post(Profile::BANK_INFO_UPDATE[URI] . '/{id}', 'updateBankInfo');
                 });
             });
-
             Route::group(['prefix' => 'shop', 'as' => 'shop.'], function () {
                 Route::controller(ShopController::class)->group(function () {
                     Route::get('index', 'index')->name('index');
@@ -300,10 +287,8 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::post('add-vacation', 'updateVacation')->name('update-vacation');
                     Route::post('close-shop-temporary', 'closeShopTemporary')->name('close-shop-temporary');
                     Route::post('update-other-settings', 'updateOtherSettings')->name('update-other-settings');
-
                     Route::get('other-setup', 'getOtherSetupView')->name('other-setup');
                 });
-
                 Route::group(['prefix' => 'payment-information', 'as' => 'payment-information.'], function () {
                     Route::controller(VendorPaymentInfoController::class)->group(function () {
                         Route::get('', 'index')->name('index');
@@ -317,7 +302,6 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     });
                 });
             });
-
             Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.'], function () {
                 Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.'], function () {
                     Route::controller(ShippingMethodController::class)->group(function () {
@@ -329,15 +313,12 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                         Route::post(ShippingMethod::DELETE[URI], 'delete')->name('delete');
                     });
                 });
-
                 Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.'], function () {
                     Route::post(ShippingType::INDEX[URI], [ShippingTypeController::class, 'addOrUpdate'])->name('index');
                 });
-
                 Route::group(['prefix' => 'category-wise-shipping-cost', 'as' => 'category-wise-shipping-cost.'], function () {
                     Route::post(CategoryShippingCost::INDEX[URI], [CategoryShippingCostController::class, 'index'])->name('index');
                 });
-
                 Route::group(['prefix' => 'withdraw', 'as' => 'withdraw.'], function () {
                     Route::controller(WithdrawController::class)->group(function () {
                         Route::get('index', 'index')->name('index');
@@ -349,28 +330,30 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                 });
             });
 
+            // MOVED AD-REQUEST ROUTES INSIDE THE SELLER MIDDLEWARE GROUP
+          Route::group(['prefix' => 'ad-request', 'as' => 'ad-request.'], function () {
+    Route::get('create', [VendorAdRequestController::class, 'create'])->name('create');
+    Route::post('store', [VendorAdRequestController::class, 'store'])->name('store');
+});
+
             Route::controller(SystemController::class)->group(function () {
                 Route::get('/get-order-data', 'getOrderData')->name('get-order-data');
             });
-
             Route::group(['prefix' => 'report', 'as' => 'report.'], function () {
                 Route::controller(ProductReportController::class)->group(function () {
                     Route::get('all-product', 'all_product')->name('all-product');
                     Route::get('all-product-excel', 'allProductExportExcel')->name('all-product-excel');
-
                     Route::get('stock-product-report', 'stock_product_report')->name('stock-product-report');
                     Route::get('product-stock-export', 'productStockExport')->name('product-stock-export');
                 });
-
                 Route::controller(OrderReportController::class)->group(function () {
                     Route::get('order-report', 'order_report')->name('order-report');
                     Route::get('order-report-excel', 'orderReportExportExcel')->name('order-report-excel');
                     Route::get('order-report-pdf', 'exportOrderReportInPDF')->name('order-report-pdf');
                 });
+                Route::any('set-date', [ReportController::class, "set_date"])->name("set-date");
 
-                Route::any('set-date', 'App\Http\Controllers\Vendor\ReportController@set_date')->name('set-date');
             });
-
             Route::group(['prefix' => 'transaction', 'as' => 'transaction.'], function () {
                 Route::controller(TransactionReportController::class)->group(function () {
                     Route::get('order-list', 'order_transaction_list')->name('order-list');
@@ -385,5 +368,4 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             });
         });
     });
-
 });

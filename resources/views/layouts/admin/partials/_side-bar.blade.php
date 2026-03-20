@@ -33,6 +33,16 @@
                     </span>
                 </a>
             </li>
+  <li>
+    <a class="nav-link {{ Request::is('admin/ad-requests*') ? 'active' : '' }}"
+       title="{{ translate('Services_Requests') }}" href="{{ route('admin.ad-requests.index') }}">
+        <i class="fi fi-sr-document"></i>
+        <span class="aside-mini-hidden-element text-truncate">
+            {{ translate('Services Requests list') }}
+        </span>
+    </a>
+</li>
+
             @if (Helpers::module_permission_check('pos_management'))
                 <li>
                     <a class="nav-link {{ Request::is('admin/pos*') ? 'active' : '' }}" title="{{ translate('POS') }}"

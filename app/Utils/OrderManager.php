@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Utils;
-
+use App\Models\Baladiya;
+use App\Models\Wilaya;
+use App\Services\ShippingOrderService;
 use App\Models\OrderDetailsRewards;
 use App\Models\ShippingMethod;
 use Carbon\Carbon;
@@ -785,6 +787,25 @@ class OrderManager
 
     public static function getOrderAddData(int $orderId, string $orderGroupId, object|array $customerData = [], object|array $cartData = [], object|array $orderData = []): array
     {
+        $shippingAddress = ShippingAddress::find($cartData['shipping_address_id']);
+$billingAddress = getWebConfig('billing_input_by_customer') ? ShippingAddress::find($cartData['billing_address_id']) : null;
+
+$selectedWilaya = session('selected_wilaya_id') ? Wilaya::find(session('selected_wilaya_id')) : null;
+$selectedBaladiya = session('selected_baladiya_id') ? Baladiya::find(session('selected_baladiya_id')) : null;
+$selectedDeliveryMethod = session('selected_delivery_method');
+
+$shippingAddressData = $shippingAddress ? json_encode(array_merge($shippingAddress->toArray(), [
+    'noest_wilaya_id' => $selectedWilaya?->id,
+    'noest_wilaya_code' => $selectedWilaya?->code,
+    'noest_wilaya_name' => $selectedWilaya?->name,
+    'noest_baladiya_id' => $selectedBaladiya?->id,
+    'noest_baladiya_name' => $selectedBaladiya?->name,
+    'noest_delivery_method' => $selectedDeliveryMethod,
+]), JSON_UNESCAPED_UNICODE) : null;
+
+$billingAddressData = $billingAddress
+    ? json_encode($billingAddress->toArray(), JSON_UNESCAPED_UNICODE)
+    : null;
         $adminCommission = (float)str_replace(",", "", Helpers::sales_commission_before_order($cartData['cart_group_id'], $cartData['coupon_discount']));
         return [
             'id' => $orderId,
@@ -810,9 +831,10 @@ class OrderManager
             'bring_change_amount_currency' => $orderData['bring_change_amount_currency'] ?? null,
             'admin_commission' => $adminCommission,
             'shipping_address' => $cartData['shipping_address_id'],
-            'shipping_address_data' => ShippingAddress::find($cartData['shipping_address_id']),
+            'shipping_address_data' => $shippingAddressData,
+
             'billing_address' => getWebConfig('billing_input_by_customer') ? $cartData['billing_address_id'] : null,
-            'billing_address_data' => getWebConfig('billing_input_by_customer') ? ShippingAddress::find($cartData['billing_address_id']) : null,
+            'billing_address_data' => getWebConfig('billing_input_by_customer') ? $billingAddressData : null,
             'shipping_responsibility' => getWebConfig(name: 'shipping_method'),
             'shipping_cost' => $cartData['shipping_cost'],
             'extra_discount' => $cartData['free_delivery_discount'],
@@ -996,6 +1018,12 @@ class OrderManager
 
             $order = Order::with('customer', 'seller.shop', 'details')->find($order_id);
             OrderManager::getAddOrderTransactionsOnGenerateOrder(order: $order, ordersData: $ordersData);
+
+            try {
+    ShippingOrderService::createShipment($order);
+} catch (\Throwable $exception) {
+    info('NOEST shipment creation failed for order ' . $order_id . ': ' . $exception->getMessage());
+}
 
             $orderPlacedNotificationEvents = OrderManager::getGenerateOrderNotificationInfo(
                 vendorType: $vendorWiseCart['seller_is'],

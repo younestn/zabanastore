@@ -82,49 +82,7 @@ function checkoutFromPayment() {
     $(".action-checkout-function").attr("disabled", true).addClass("disabled");
 
     if (checked_button_id === 'cash_on_delivery') {
-        let form = $("#cash_on_delivery_form");
-
-        $.ajax({
-            url: form.attr('action'),
-            type: 'GET',
-            dataType: 'json',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            data: form.serialize(),
-            beforeSend: function () {
-                $('#loading').show();
-            },
-            success: function (response) {
-                if (response.status === 1 && response.redirect) {
-                    window.location.href = response.redirect;
-                    return;
-                }
-
-                if (response.message) {
-                    toastr.error(response.message, {
-                        CloseButton: true,
-                        ProgressBar: true
-                    });
-                }
-
-                $(".action-checkout-function").attr("disabled", false).removeClass("disabled");
-            },
-            error: function (xhr) {
-                let message = xhr.responseJSON?.message || xhr.responseJSON?.errors || 'Checkout failed';
-
-                toastr.error(message, {
-                    CloseButton: true,
-                    ProgressBar: true
-                });
-
-                $(".action-checkout-function").attr("disabled", false).removeClass("disabled");
-            },
-            complete: function () {
-                $('#loading').hide();
-            }
-        });
-
+        document.getElementById("cash_on_delivery_form").submit();
         return;
     }
 

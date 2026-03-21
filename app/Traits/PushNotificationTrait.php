@@ -460,6 +460,9 @@ trait PushNotificationTrait
 
     protected function sendNotificationToHttp(array|null $data): bool|string|null
     {
+        if (app()->environment('local')) {
+    return false;
+}
         try {
             $key = (array)getWebConfig('push_notification_key');
             if (isset($key['project_id'])) {
@@ -469,7 +472,7 @@ trait PushNotificationTrait
                     'Content-Type' => 'application/json',
                 ];
             }
-            return Http::withHeaders($headers)->post($url, $data);
+            return Http::timeout(5)->connectTimeout(3)->withHeaders($headers)->post($url, $data);
         } catch (\Exception $exception) {
             return false;
         }
@@ -490,7 +493,7 @@ trait PushNotificationTrait
         openssl_sign($unsignedJwt, $signature, $key['private_key'], OPENSSL_ALGO_SHA256);
         $jwt = $unsignedJwt . '.' . base64_encode($signature);
 
-        $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+        $response = Http::timeout(5)->connectTimeout(3)->asForm()->post('https://oauth2.googleapis.com/token', [
             'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
             'assertion' => $jwt,
         ]);

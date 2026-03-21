@@ -872,7 +872,7 @@ class OrderManager
                 'variant' => $cartSingleItem['variant'],
                 'variation' => $cartSingleItem['variations'],
                 'delivery_status' => 'pending',
-                'shipping_method_id' => null,
+                'shipping_method_id' => 0,
                 'payment_status' => 'unpaid',
                 'created_at' => now(),
                 'updated_at' => now()
@@ -1044,12 +1044,14 @@ class OrderManager
             }
         }
 
-        foreach ($orderPlacedMailEvents as $orderPlacedMailEvent) {
-            try {
-                event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data']));
-            } catch (Exception $exception) {
-            }
-        }
+
+foreach ($orderPlacedMailEvents as $orderPlacedMailEvent) {
+    try {
+        event(new OrderPlacedEvent(email: $orderPlacedMailEvent['email'], data: $orderPlacedMailEvent['data']));
+    } catch (Exception $exception) {
+    }
+}
+
 
         CartManager::cartCleanByCartGroupIds(cartGroupIDs: collect($vendorWiseCartList)?->pluck('cart_group_id')->toArray() ?? []);
 
@@ -1202,7 +1204,7 @@ class OrderManager
                     'orderId' => $order['id'],
                     'shopName' => $vendorType == 'admin' ? getInHouseShopConfig(key: 'name') : $vendor?->shop?->name ?? getWebConfig('company_name'),
                     'shopId' => $vendor?->shop?->id ?? 0,
-                    'attachmentPath' => self::storeInvoice($order['id']),
+                    'attachmentPath' => null,
                 ]
             ];
 

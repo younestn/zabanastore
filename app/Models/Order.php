@@ -191,10 +191,18 @@ class Order extends Model
     }
 
     public function shipping(): BelongsTo
-    {
-        return $this->belongsTo(ShippingMethod::class, 'shipping_method_id');
-    }
+{
+    return $this->belongsTo(ShippingMethod::class, 'shipping_method_id')
+        ->withDefault(function ($shipping, $order) {
+            $label = ((int)($order->shipping_method_id ?? 0) === 0)
+                ? translate('NOEST_shipping')
+                : translate('shipping');
 
+            $shipping->title = $label;
+            $shipping->method_name = $label;
+            $shipping->name = $label;
+        });
+}
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(ShippingAddress::class, 'shipping_address');
@@ -261,4 +269,17 @@ class Order extends Model
         parent::boot();
         //static::addGlobalScope(new RememberScope);
     }
+
+    public function getShippingDisplayNameAttribute(): string
+{
+    if ((int)($this->shipping_method_id ?? 0) === 0) {
+        return translate('NOEST_shipping');
+    }
+
+    return $this->shipping?->title
+        ?? $this->shipping?->method_name
+        ?? $this->shipping?->name
+        ?? translate('shipping');
+}
+
 }

@@ -747,7 +747,7 @@ class OrderManager
             }
 
             $shippingMethod = CartShipping::where(['cart_group_id' => $groupId])->first();
-            $shippingMethodId = isset($shippingMethod) ? $shippingMethod->shipping_method_id : 0;
+            $shippingMethodId = $shippingMethod?->shipping_method_id ?? 0;
             $cartGroupOrderAmount = $cartGroupGrandTotal - ($couponInfo['discount'] ?? 0) - $freeShippingDiscount;
 
             $referAndEarnDiscount = OrderManager::redeemReferralDiscount(
@@ -1780,52 +1780,74 @@ class OrderManager
                     }
 
                     if ($isPhysicalProductExist && $shippingType == 'order_wise') {
-                        $sellerShippingCount = 0;
-                        if ($shippingMethod == 'inhouse_shipping') {
-                            $sellerShippingCount = ShippingMethod::where(['status' => 1])->where(['creator_type' => 'admin'])->count();
-                            if ($sellerShippingCount <= 0 && isset($cart->seller->shop)) {
-                                $message[] = translate('shipping_Not_Available_for') . ' ' . getWebConfig(name: 'company_name');
-                                $response['status'] = 0;
-                                $response['redirect'] = route('shop-cart');
-                            }
-                        } else {
-                            if ($cart->seller_is == 'admin') {
-                                $sellerShippingCount = ShippingMethod::where(['status' => 1])->where(['creator_type' => 'admin'])->count();
-                                if ($sellerShippingCount <= 0 && isset($cart->seller->shop)) {
-                                    $message[] = translate('shipping_Not_Available_for') . ' ' . getInHouseShopConfig(key: 'name');
-                                    $response['status'] = 0;
-                                    $response['redirect'] = route('shop-cart');
-                                }
-                            } else if ($cart->seller_is == 'seller') {
-                                $sellerShippingCount = ShippingMethod::where(['status' => 1])->where(['creator_id' => $cart->seller_id, 'creator_type' => 'seller'])->count();
-                                if ($sellerShippingCount <= 0 && isset($cart->seller->shop)) {
-                                    $message[] = translate('shipping_Not_Available_for') . ' ' . $cart->seller->shop->name;
-                                    $response['status'] = 0;
-                                    $response['redirect'] = route('shop-cart');
-                                }
-                            }
-                        }
+    $sellerShippingCount = 0;
 
-                        if ($sellerShippingCount > 0 && $shippingMethod == 'inhouse_shipping' && $inhouseShippingMsgCount < 1) {
-                            $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
-                                $response['status'] = 0;
-                                $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
-                                $message[] = translate('select_shipping_method');
-                            }
-                            $inhouseShippingMsgCount++;
-                        } elseif ($sellerShippingCount > 0 && $shippingMethod != 'inhouse_shipping') {
-                            $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
-                            if (!isset($cartShipping)) {
-                                $response['status'] = 0;
-                                $response['errorType'] = 'empty-shipping';
-                                $response['redirect'] = route('shop-cart');
-                                $shopIdentity = $cart->seller_is == 'admin' ? getInHouseShopConfig(key: 'name') : $cart->seller->shop->name;
-                                $message[] = translate('select') . ' ' . $shopIdentity . ' ' . translate('shipping_method');
-                            }
-                        }
-                    }
+    $noestVendorId = $cart->seller_is == 'admin' ? 0 : $cart->seller_id;
+
+    $noestShippingCompany = DB::table('vendor_shipping_companies')
+        ->where('vendor_id', $noestVendorId)
+        ->whereRaw('LOWER(name) = ?', ['noest'])
+        ->where('status', 1)
+        ->first();
+
+    $hasNoestShipping = $noestShippingCompany
+        && !empty($noestShippingCompany->noest_guid)
+        && !empty($noestShippingCompany->api_token);
+
+    if ($shippingMethod == 'inhouse_shipping') {
+        $sellerShippingCount = ShippingMethod::where(['status' => 1])
+            ->where(['creator_type' => 'admin'])
+            ->count();
+
+        if ($sellerShippingCount <= 0 && !$hasNoestShipping && isset($cart->seller->shop)) {
+            $message[] = translate('shipping_Not_Available_for') . ' ' . getWebConfig(name: 'company_name');
+            $response['status'] = 0;
+            $response['redirect'] = route('shop-cart');
+        }
+    } else {
+        if ($cart->seller_is == 'admin') {
+            $sellerShippingCount = ShippingMethod::where(['status' => 1])
+                ->where(['creator_type' => 'admin'])
+                ->count();
+
+            if ($sellerShippingCount <= 0 && !$hasNoestShipping && isset($cart->seller->shop)) {
+                $message[] = translate('shipping_Not_Available_for') . ' ' . getInHouseShopConfig(key: 'name');
+                $response['status'] = 0;
+                $response['redirect'] = route('shop-cart');
+            }
+        } else if ($cart->seller_is == 'seller') {
+            $sellerShippingCount = ShippingMethod::where(['status' => 1])
+                ->where(['creator_id' => $cart->seller_id, 'creator_type' => 'seller'])
+                ->count();
+
+            if ($sellerShippingCount <= 0 && !$hasNoestShipping && isset($cart->seller->shop)) {
+                $message[] = translate('shipping_Not_Available_for') . ' ' . $cart->seller->shop->name;
+                $response['status'] = 0;
+                $response['redirect'] = route('shop-cart');
+            }
+        }
+    }
+
+    if ($sellerShippingCount > 0 && $shippingMethod == 'inhouse_shipping' && $inhouseShippingMsgCount < 1) {
+        $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
+        if (!isset($cartShipping)) {
+            $response['status'] = 0;
+            $response['errorType'] = 'empty-shipping';
+            $response['redirect'] = route('shop-cart');
+            $message[] = translate('select_shipping_method');
+        }
+        $inhouseShippingMsgCount++;
+    } elseif (($sellerShippingCount > 0 || $hasNoestShipping) && $shippingMethod != 'inhouse_shipping') {
+        $cartShipping = CartShipping::where('cart_group_id', $cart->cart_group_id)->first();
+        if (!isset($cartShipping)) {
+            $response['status'] = 0;
+            $response['errorType'] = 'empty-shipping';
+            $response['redirect'] = route('shop-cart');
+            $shopIdentity = $cart->seller_is == 'admin' ? getInHouseShopConfig(key: 'name') : $cart->seller->shop->name;
+            $message[] = translate('select') . ' ' . $shopIdentity . ' ' . translate('shipping_method');
+        }
+    }
+}
                 }
             }
         }

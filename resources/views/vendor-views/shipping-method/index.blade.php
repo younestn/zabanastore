@@ -46,6 +46,9 @@ use Illuminate\Support\Facades\Session;
                 </div>
             </div>
         </div>
+
+
+
         <div class="row">
             <div class="col-md-12 ">
                 <div class="card">
@@ -56,6 +59,9 @@ use Illuminate\Support\Facades\Session;
                         </h5>
                     </div>
                     <div class="card-body">
+
+
+
                         <div class="row">
                             <div class="col-12 text-capitalize" style="text-align: {{$direction === "rtl" ? 'right' : 'left'}};">
                                 <select class="form-control text-capitalize w-100 shipping-type" name="shippingCategory">
@@ -92,6 +98,103 @@ use Illuminate\Support\Facades\Session;
                 <div class="card-body">
                     <form action="{{route('vendor.business-settings.shipping-method.index')}}" method="post">
                         @csrf
+
+@php($noestConnectionStatus = session('noest_connection_status'))
+@php($isNoestConnected = $noestConnectionStatus === 1 || ($noestConnectionStatus === null && !empty($noestShippingCompany?->connected_since)))
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="text-capitalize mb-0 d-flex align-items-center gap-2">
+            <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/delivery.png') }}" alt="">
+            {{ translate('NOEST_shipping_settings') }}
+        </h5>
+    </div>
+
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge {{ $isNoestConnected ? 'badge-soft-success' : 'badge-soft-danger' }}">
+                    {{ $isNoestConnected ? translate('connected') : translate('not_connected') }}
+                </span>
+
+                @if(!empty($noestShippingCompany?->connected_since))
+                    <span class="text-muted">
+                        {{ translate('connected_since') }} : {{ $noestShippingCompany->connected_since }}
+                    </span>
+                @endif
+            </div>
+
+            <div class="text-muted">
+                {{ translate('use_your_vendor_GUID_and_API_token_to_connect_with_NOEST') }}
+            </div>
+        </div>
+
+        <form action="{{ route('vendor.business-settings.shipping-method.noest-settings') }}" method="post">
+            @csrf
+
+            <div class="row">
+                <div class="col-xl-4 col-md-6">
+                    <div class="form-group">
+                        <label class="title-color" for="noest_guid">{{ translate('NOEST_GUID') }}</label>
+                        <input
+                            type="text"
+                            name="noest_guid"
+                            id="noest_guid"
+                            class="form-control"
+                            value="{{ old('noest_guid', $noestShippingCompany->noest_guid ?? '') }}"
+                            placeholder="{{ translate('enter_NOEST_GUID') }}"
+                        >
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="form-group">
+                        <label class="title-color" for="api_token">{{ translate('NOEST_API_Token') }}</label>
+                        <input
+                            type="text"
+                            name="api_token"
+                            id="api_token"
+                            class="form-control"
+                            value="{{ old('api_token', $noestShippingCompany->api_token ?? '') }}"
+                            placeholder="{{ translate('enter_NOEST_API_Token') }}"
+                        >
+                    </div>
+                </div>
+
+                <div class="col-xl-4 col-md-6">
+                    <div class="form-group">
+                        <label class="title-color d-block">{{ translate('status') }}</label>
+                        <label class="switcher">
+                            <input
+                                type="checkbox"
+                                class="switcher_input"
+                                name="status"
+                                value="1"
+                                {{ old('status', $noestShippingCompany->status ?? 0) ? 'checked' : '' }}
+                            >
+                            <span class="switcher_control"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button
+                    type="submit"
+                    formaction="{{ route('vendor.business-settings.shipping-method.test-noest-connection') }}"
+                    class="btn btn-outline--primary"
+                >
+                    {{ translate('test_connection') }}
+                </button>
+
+                <button type="submit" class="btn btn--primary">
+                    {{ translate('save') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
                         <div class="row">
                             <div class="col-xl-4 col-md-6">
                                 <div class="form-group">

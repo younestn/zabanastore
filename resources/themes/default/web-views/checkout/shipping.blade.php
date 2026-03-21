@@ -113,6 +113,54 @@
                                                                 </select>
                                                             </div>
                                                         </div>
+
+<div class="col-6">
+    <div class="form-group">
+        <label>{{ translate('wilaya') }} <span class="text-danger">*</span></label>
+        <select class="form-control selectpicker" data-live-search="true" name="wilaya_id" id="wilaya_id" required>
+            <option value="">{{ translate('select_wilaya') }}</option>
+            @foreach(\App\Models\Wilaya::orderBy('name')->get() as $wilaya)
+                <option value="{{ $wilaya->id }}" data-code="{{ $wilaya->code }}">
+                    {{ $wilaya->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
+
+<div class="col-6">
+    <div class="form-group">
+        <label>{{ translate('baladiya') }} <span class="text-danger">*</span></label>
+        <select class="form-control selectpicker" data-live-search="true" name="baladiya_id" id="baladiya_id" required>
+            <option value="">{{ translate('select_baladiya') }}</option>
+        </select>
+    </div>
+</div>
+
+<div class="col-12">
+    <div class="form-group">
+        <label>{{ translate('delivery_method') }} <span class="text-danger">*</span></label>
+        <div class="d-flex flex-wrap gap-3">
+            <label class="form-check-label d-flex gap-2 align-items-center">
+                <input type="radio" name="selected_delivery_method" value="home_delivery" checked>
+                {{ translate('home_delivery') }}
+            </label>
+
+            <label class="form-check-label d-flex gap-2 align-items-center">
+                <input type="radio" name="selected_delivery_method" value="desk_delivery">
+                {{ translate('desk_delivery') }}
+            </label>
+        </div>
+    </div>
+</div>
+
+<div class="col-12">
+    <div class="alert alert--info mb-3 d-none" id="dynamic-shipping-preview-box">
+        <strong>{{ translate('shipping_cost') }}:</strong>
+        <span id="dynamic-shipping-preview">0</span>
+    </div>
+</div>
+
                                                         <div class="col-6">
                                                             <div class="form-group">
                                                                 <label>{{ translate('city')}}<span  class="text-danger">*</span></label>
@@ -458,10 +506,18 @@
 
     <span id="message-update-this-address" data-text="{{ translate('Update_this_Address') }}"></span>
     <span id="route-customer-choose-shipping-address-other" data-url="{{ route('customer.choose-shipping-address-other') }}"></span>
+    <span id="route-checkout-payment" data-url="{{ route('checkout-payment') }}"></span>
     <span id="default-latitude-address" data-value="{{ $defaultLocation ? $defaultLocation['lat']:'-33.8688' }}"></span>
     <span id="default-longitude-address" data-value="{{ $defaultLocation ? $defaultLocation['lng']:'151.2195' }}"></span>
     <span id="route-action-checkout-function" data-route="checkout-details"></span>
     <span id="system-country-restrict-status" data-value="{{ $country_restrict_status }}"></span>
+
+    <span id="route-get-baladiyas-for-wilaya"
+      data-url="{{ route('checkout.get-baladiyas-for-wilaya', ['wilayaId' => '__id__']) }}"></span>
+
+<span id="route-calculate-shipping-price"
+      data-url="{{ route('checkout.calculate-shipping-price') }}"></span>
+
 @endsection
 
 @push('script')

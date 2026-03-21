@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Utils;
-
+use Illuminate\Support\Facades\DB;
 use App\Models\DigitalProductVariation;
 use App\Models\ProductCompare;
 use App\Models\ShippingMethod;
@@ -571,43 +571,89 @@ class CartManager
             }
 
             if ($product['product_type'] == 'physical' && $shippingType == 'order_wise') {
-                if ($request['shipping_method_exist'] && $request['shipping_method_id'] && count($sellerShippingList) > 0) {
-                    $cart->update(['is_checked' => 1]);
-                    $cartGroupIds = Cart::where(['customer_id' => ($user == 'offline' ? $guestId : $user->id), 'is_guest' => ($user == 'offline' ? 1 : 0)])
-                        ->pluck('cart_group_id');
-                    if (count($cartGroupIds) > 0) {
-                        CartShipping::whereIn('cart_group_id', $cartGroupIds)->delete();
-                    }
 
-                    $shipping = CartShipping::where(['cart_group_id' => $cart['cart_group_id']])->first();
-                    if (!isset($shipping)) {
-                        $shipping = new CartShipping();
-                    }
-                    $getShippingCost = ShippingMethod::find($request['shipping_method_id']);
-                    if (!$getShippingCost) {
-                        return ['status' => 0, 'message' => translate('Selected_shipping_method_not_found')];
-                    }
-                    $shipping['cart_group_id'] = $cart['cart_group_id'];
-                    $shipping['shipping_method_id'] = $request['shipping_method_id'];
-                    $shipping['shipping_cost'] = $getShippingCost->cost ?? 0;
-                    $shipping->save();
+    $noestVendorId = $product->added_by == 'admin' ? 0 : $product->user_id;
 
-                    $cart['free_delivery_order_amount'] = OrderManager::getFreeDeliveryOrderAmountArray($cart['cart_group_id']);
+    $noestShippingCompany = DB::table('vendor_shipping_companies')
+        ->where('vendor_id', $noestVendorId)
+        ->whereRaw('LOWER(name) = ?', ['noest'])
+        ->where('status', 1)
+        ->first();
 
-                    return [
-                        'status' => 1,
-                        'redirect_to' => 'checkout',
-                        'cart' => $cart,
-                        'cart_shipping_cost' => $getShippingCost->cost ?? 0,
-                        'message' => translate('successfully_added') . '!',
-                    ];
-                }
-                return [
-                    'status' => $sellerShippingList && count($sellerShippingList) > 0 ? 2 : 0,
-                    'message' => $sellerShippingList && count($sellerShippingList) > 0 ? translate('Please_select_shipping_method') : translate('Shipping_Not_Available_for_this_Shop'),
-                    'shipping_method_list' => $sellerShippingList,
-                ];
-            } elseif ($product['product_type'] == 'physical' && ($shippingType == 'category_wise' || $shippingType == 'product_wise')) {
+    $hasNoestShipping = $noestShippingCompany
+        && !empty($noestShippingCompany->noest_guid)
+        && !empty($noestShippingCompany->api_token);
+
+    if ($request['shipping_method_exist'] && $request['shipping_method_id'] && count($sellerShippingList) > 0) {
+        $cart->update(['is_checked' => 1]);
+
+        $cartGroupIds = Cart::where([
+            'customer_id' => ($user == 'offline' ? $guestId : $user->id),
+            'is_guest' => ($user == 'offline' ? 1 : 0)
+        ])->pluck('cart_group_id');
+
+        if (count($cartGroupIds) > 0) {
+            CartShipping::whereIn('cart_group_id', $cartGroupIds)->delete();
+        }
+
+        $shipping = CartShipping::where(['cart_group_id' => $cart['cart_group_id']])->first();
+        if (!isset($shipping)) {
+            $shipping = new CartShipping();
+        }
+
+        $getShippingCost = ShippingMethod::find($request['shipping_method_id']);
+        if (!$getShippingCost) {
+            return ['status' => 0, 'message' => translate('Selected_shipping_method_not_found')];
+        }
+
+        $shipping['cart_group_id'] = $cart['cart_group_id'];
+        $shipping['shipping_method_id'] = $request['shipping_method_id'];
+        $shipping['shipping_cost'] = $getShippingCost->cost ?? 0;
+        $shipping->save();
+
+        $cart['free_delivery_order_amount'] = OrderManager::getFreeDeliveryOrderAmountArray($cart['cart_group_id']);
+
+        return [
+            'status' => 1,
+            'redirect_to' => 'checkout',
+            'cart' => $cart,
+            'cart_shipping_cost' => $getShippingCost->cost ?? 0,
+            'message' => translate('successfully_added') . '!',
+        ];
+    }
+
+    if ($hasNoestShipping) {
+        $cart->update(['is_checked' => 1]);
+
+        CartShipping::updateOrCreate(
+    ['cart_group_id' => $cart['cart_group_id']],
+    [
+        'shipping_method_id' => 0,
+        'shipping_cost' => 0,
+    ]
+);
+
+        $cart['free_delivery_order_amount'] = OrderManager::getFreeDeliveryOrderAmountArray($cart['cart_group_id']);
+
+        return [
+            'status' => 1,
+            'redirect_to' => 'checkout',
+            'cart' => $cart,
+            'cart_shipping_cost' => 0,
+            'message' => translate('successfully_added') . '!',
+        ];
+    }
+
+    return [
+        'status' => $sellerShippingList && count($sellerShippingList) > 0 ? 2 : 0,
+        'message' => $sellerShippingList && count($sellerShippingList) > 0
+            ? translate('Please_select_shipping_method')
+            : translate('Shipping_Not_Available_for_this_Shop'),
+        'shipping_method_list' => $sellerShippingList,
+    ];
+}
+
+            elseif ($product['product_type'] == 'physical' && ($shippingType == 'category_wise' || $shippingType == 'product_wise')) {
                 $cart->update([
                     'is_checked' => 1,
                     'shipping_cost' => CartManager::get_shipping_cost_for_product_category_wise($product, $request->quantity) ?? 0,

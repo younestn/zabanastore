@@ -10,6 +10,7 @@ $(function () {
 });
 
 const radioButtons = document.querySelectorAll('input[type="radio"]');
+
 radioButtons.forEach((radioButton) => {
     radioButton.addEventListener("change", function () {
         radioButtons.forEach((otherRadioButton) => {
@@ -17,12 +18,14 @@ radioButtons.forEach((radioButton) => {
                 otherRadioButton.checked = false;
             }
         });
+
         if (this.checked) {
             this.setAttribute("checked", true);
         } else {
             this.setAttribute("checked", false);
         }
-        updateProceedButtonState()
+
+        updateProceedButtonState();
     });
 });
 
@@ -48,7 +51,6 @@ function updateProceedButtonState() {
         $(".proceed_to_next_button").addClass("disabled");
     }
 
-    // show/hide offline card
     if (payOfflineSelected) {
         $(".pay_offline_card").removeClass("d-none");
         $(".proceed_to_next_button").addClass("disabled");
@@ -66,23 +68,81 @@ $('.payment-input-checkbox').on('click', function () {
 
 updateProceedButtonState();
 
-
-
 function checkoutFromPayment() {
     let checked_button_id = $('input[type="radio"]:checked').attr("id");
+
+    if (!checked_button_id) {
+        toastr.error('Please select a payment method', {
+            CloseButton: true,
+            ProgressBar: true
+        });
+        return;
+    }
+
     $(".action-checkout-function").attr("disabled", true).addClass("disabled");
+
+    if (checked_button_id === 'cash_on_delivery') {
+        let form = $("#cash_on_delivery_form");
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            data: form.serialize(),
+            beforeSend: function () {
+                $('#loading').show();
+            },
+            success: function (response) {
+                if (response.status === 1 && response.redirect) {
+                    window.location.href = response.redirect;
+                    return;
+                }
+
+                if (response.message) {
+                    toastr.error(response.message, {
+                        CloseButton: true,
+                        ProgressBar: true
+                    });
+                }
+
+                $(".action-checkout-function").attr("disabled", false).removeClass("disabled");
+            },
+            error: function (xhr) {
+                let message = xhr.responseJSON?.message || xhr.responseJSON?.errors || 'Checkout failed';
+
+                toastr.error(message, {
+                    CloseButton: true,
+                    ProgressBar: true
+                });
+
+                $(".action-checkout-function").attr("disabled", false).removeClass("disabled");
+            },
+            complete: function () {
+                $('#loading').hide();
+            }
+        });
+
+        return;
+    }
+
     $("#" + checked_button_id + "_form").submit();
 }
 
 const buttons = document.querySelectorAll(".offline_payment_button");
 const selectElement = document.getElementById("pay_offline_method");
-buttons.forEach((button) => {
-    button.addEventListener("click", function () {
-        const buttonId = this.id;
-        pay_offline_method_field(buttonId);
-        selectElement.value = buttonId;
+
+if (buttons.length > 0 && selectElement) {
+    buttons.forEach((button) => {
+        button.addEventListener("click", function () {
+            const buttonId = this.id;
+            pay_offline_method_field(buttonId);
+            selectElement.value = buttonId;
+        });
     });
-});
+}
 
 $("#pay_offline_method").on("change", function () {
     pay_offline_method_field(this.value);
@@ -94,11 +154,9 @@ function pay_offline_method_field(method_id) {
             "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
         },
     });
+
     $.ajax({
-        url:
-            $("#route-pay-offline-method-list").data("url") +
-            "?method_id=" +
-            method_id,
+        url: $("#route-pay-offline-method-list").data("url") + "?method_id=" + method_id,
         data: {},
         processData: false,
         contentType: false,
@@ -107,7 +165,7 @@ function pay_offline_method_field(method_id) {
             $("#payment_method_field").html(response.methodHtml);
             $("#selectPaymentMethod").modal().show();
         },
-        error: function () {},
+        error: function () {}
     });
 }
 
@@ -137,4 +195,12 @@ $(document).ready(function () {
     });
 });
 
-//
+$(document).off('click.checkoutPayment', '.action-checkout-function').on('click.checkoutPayment', '.action-checkout-function', function (e) {
+    e.preventDefault();
+
+    let currentRoute = $('#route-action-checkout-function').data('route');
+
+    if (currentRoute === 'checkout-payment' && !$(this).hasClass('disabled')) {
+        checkoutFromPayment();
+    }
+});

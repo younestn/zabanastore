@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Http\Controllers\Web;
-
+use App\Models\Baladiya;
+use App\Models\Wilaya;
+use Illuminate\Support\Facades\Http;
 use App\Contracts\Repositories\RobotsMetaContentRepositoryInterface;
 use App\Models\Admin;
 use App\Services\ProductService;
@@ -1643,5 +1645,114 @@ class WebController extends Controller
             'methodHtml' => view(VIEW_FILE_NAMES['pay_offline_method_list_partials'], compact('method', 'totalOfflineAmount'))->render(),
         ]);
     }
+
+    public function getBaladiyasForWilaya(int|string $wilayaId): JsonResponse
+{
+    $baladiyas = Baladiya::where('wilaya_id', $wilayaId)
+        ->orderBy('name')
+        ->get(['id', 'name']);
+
+    return response()->json([
+        'status' => 1,
+        'baladiyas' => $baladiyas,
+    ]);
+}
+public function calculateShippingPrice(Request $request): JsonResponse
+{
+    $request->validate([
+        'wilaya_id' => 'required|integer|exists:wilayas,id',
+        'baladiya_id' => 'required|integer|exists:baladiyas,id',
+        'selected_delivery_method' => 'required|in:home_delivery,desk_delivery',
+    ]);
+
+    $wilaya = Wilaya::find($request->wilaya_id);
+    $baladiya = Baladiya::find($request->baladiya_id);
+
+    if (!$wilaya || !$baladiya) {
+        return response()->json([
+            'status' => 0,
+            'message' => translate('invalid_shipping_location'),
+        ], 422);
+    }
+
+    $cartGroupIds = CartManager::get_cart_group_ids(type: 'checked');
+    $totalDynamicShippingCost = 0;
+    $shippingCostByGroup = [];
+
+    foreach ($cartGroupIds as $cartGroupId) {
+        $cartItem = Cart::where('cart_group_id', $cartGroupId)
+            ->where('is_checked', 1)
+            ->first();
+
+        if (!$cartItem || $cartItem->product_type !== 'physical') {
+            continue;
+        }
+
+        $vendorId = $cartItem->seller_is === 'admin' ? 0 : $cartItem->seller_id;
+
+        $vendorNoest = DB::table('vendor_shipping_companies')
+            ->where('vendor_id', $vendorId)
+            ->whereRaw('LOWER(name) = ?', ['noest'])
+            ->where('status', 1)
+            ->first();
+
+        if (!$vendorNoest || empty($vendorNoest->noest_guid) || empty($vendorNoest->api_token)) {
+            continue;
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->acceptJson()
+                ->withToken($vendorNoest->api_token)
+                ->get('https://app.noest-dz.com/api/public/fees', [
+                    'user_guid' => $vendorNoest->noest_guid,
+                ]);
+
+            $responseData = $response->json();
+
+            if (!$response->successful() || !isset($responseData['tarifs']['delivery'])) {
+                continue;
+            }
+
+            $noestWilayaCode = (int) ltrim($wilaya->code, '0');
+            $deliveryTarifs = $responseData['tarifs']['delivery'][$noestWilayaCode] ?? null;
+
+            if (!$deliveryTarifs) {
+                continue;
+            }
+
+            $groupShippingCost = $request->selected_delivery_method === 'desk_delivery'
+                ? (float) ($deliveryTarifs['tarif_stopdesk'] ?? 0)
+                : (float) ($deliveryTarifs['tarif'] ?? 0);
+
+            $shippingCostByGroup[$cartGroupId] = $groupShippingCost;
+            $totalDynamicShippingCost += $groupShippingCost;
+
+            $cartShipping = CartShipping::firstOrNew([
+                'cart_group_id' => $cartGroupId,
+            ]);
+
+            $cartShipping->shipping_method_id = 0;
+            $cartShipping->shipping_cost = $groupShippingCost;
+            $cartShipping->save();
+
+        } catch (\Throwable $exception) {
+        }
+    }
+
+    session()->put('dynamic_shipping_cost', $totalDynamicShippingCost);
+    session()->put('selected_delivery_method', $request->selected_delivery_method);
+    session()->put('selected_wilaya_id', $request->wilaya_id);
+    session()->put('selected_baladiya_id', $request->baladiya_id);
+
+    return response()->json([
+        'status' => 1,
+        'shipping_cost' => $totalDynamicShippingCost,
+        'formatted_shipping_cost' => webCurrencyConverter(amount: $totalDynamicShippingCost),
+        'order_summary_view' => view('web-views.partials._order-summary')->render(),
+    ]);
+}
+
+
 
 }

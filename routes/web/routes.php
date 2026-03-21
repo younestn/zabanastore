@@ -67,13 +67,13 @@ use App\Http\Controllers\Admin\AdminAdRequestController;
 // GET route for the form page
 Route::get('/vendor/new-request', [TestController::class, 'index'])
     ->name('vendor.vendor1.test');
-    
+
 Route::get('/vendor/shipping-list', [VendorShippingListController::class, 'index'])
     ->name('vendor.vendor2.ship');
 
 
 Route::put('admin/ad-requests/{ad_request}', [AdminAdRequestController::class, 'update'])->name('admin.ad-requests.update');
-    
+
 
 // POST route for form submission
 Route::post('/vendor/ad-request/store', [TestController::class, 'storeAdRequest'])
@@ -149,7 +149,11 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
         Route::post('digital-product-download-otp-verify', 'getDigitalProductDownloadOtpVerify')->name('digital-product-download-otp-verify');
         Route::post('digital-product-download-otp-reset', 'getDigitalProductDownloadOtpReset')->name('digital-product-download-otp-reset');
         Route::get('pay-offline-method-list', 'pay_offline_method_list')->name('pay-offline-method-list')->middleware('guestCheck');
+Route::get('checkout/get-baladiyas-for-wilaya/{wilayaId}', [WebController::class, 'getBaladiyasForWilaya'])
+    ->name('checkout.get-baladiyas-for-wilaya');
 
+Route::post('checkout/calculate-shipping-price', [WebController::class, 'calculateShippingPrice'])
+    ->name('checkout.calculate-shipping-price');
         //wallet payment
         Route::get('checkout-complete-wallet', 'checkout_complete_wallet')->name('checkout-complete-wallet');
 

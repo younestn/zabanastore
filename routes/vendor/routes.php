@@ -305,12 +305,15 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             Route::group(['prefix' => 'business-settings', 'as' => 'business-settings.'], function () {
                 Route::group(['prefix' => 'shipping-method', 'as' => 'shipping-method.'], function () {
                     Route::controller(ShippingMethodController::class)->group(function () {
+
                         Route::get(ShippingMethod::INDEX[URI], 'index')->name('index');
                         Route::post(ShippingMethod::INDEX[URI], 'add');
                         Route::get(ShippingMethod::UPDATE[URI] . '/{id}', 'getUpdateView')->name('update');
                         Route::post(ShippingMethod::UPDATE[URI] . '/{id}', 'update');
                         Route::post(ShippingMethod::UPDATE_STATUS[URI], 'updateStatus')->name('update-status');
                         Route::post(ShippingMethod::DELETE[URI], 'delete')->name('delete');
+                        Route::post('noest-settings', 'updateNoestSettings')->name('noest-settings');
+                         Route::post('test-noest-connection', 'testNoestConnection')->name('test-noest-connection');
                     });
                 });
                 Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.'], function () {

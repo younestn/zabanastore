@@ -393,3 +393,94 @@ function mapsShopping() {
     } catch (error) {
     }
 }
+"use strict";
+
+function getBaladiyasUrl(wilayaId) {
+    return $('#route-get-baladiyas-for-wilaya').data('url').replace('__id__', wilayaId);
+}
+
+function calculateDynamicShippingPrice() {
+    let wilayaId = $('#wilaya_id').val();
+    let baladiyaId = $('#baladiya_id').val();
+    let selectedDeliveryMethod = $('input[name="selected_delivery_method"]:checked').val();
+
+    if (!wilayaId || !baladiyaId || !selectedDeliveryMethod) {
+        return;
+    }
+
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
+        }
+    });
+
+    $.post({
+        url: $('#route-calculate-shipping-price').data('url'),
+        data: {
+            wilaya_id: wilayaId,
+            baladiya_id: baladiyaId,
+            selected_delivery_method: selectedDeliveryMethod
+        },
+        beforeSend: function () {
+            $('#loading').show();
+        },
+        success: function (response) {
+            if (response.status === 1) {
+                $('#dynamic-shipping-preview-box').removeClass('d-none');
+                $('#dynamic-shipping-preview').text(response.formatted_shipping_cost);
+                $('.order-summery-aside').replaceWith(response.order_summary_view);
+            } else if (response.message) {
+                toastr.error(response.message, {
+                    CloseButton: true,
+                    ProgressBar: true
+                });
+            }
+        },
+        complete: function () {
+            $('#loading').hide();
+        },
+        error: function (xhr) {
+            toastr.error(xhr.responseJSON?.message ?? 'Shipping price calculation failed', {
+                CloseButton: true,
+                ProgressBar: true
+            });
+        }
+    });
+}
+
+$(document).on('change', '#wilaya_id', function () {
+    let wilayaId = $(this).val();
+
+    $('#baladiya_id').html('<option value="">' + 'Loading...' + '</option>').selectpicker('refresh');
+
+    $.get({
+        url: getBaladiyasUrl(wilayaId),
+        success: function (response) {
+            let options = '<option value="">' + 'Select Baladiya' + '</option>';
+
+            if (response.status === 1 && response.baladiyas.length > 0) {
+                response.baladiyas.forEach(function (baladiya) {
+                    options += `<option value="${baladiya.id}" data-name="${baladiya.name}">${baladiya.name}</option>`;
+                });
+            }
+
+            $('#baladiya_id').html(options).selectpicker('refresh');
+            calculateDynamicShippingPrice();
+        }
+    });
+});
+
+$(document).on('change', '#baladiya_id, input[name="selected_delivery_method"]', function () {
+    calculateDynamicShippingPrice();
+});
+
+
+$(document).off('click.checkoutShipping', '.action-checkout-function').on('click.checkoutShipping', '.action-checkout-function', function (e) {
+    e.preventDefault();
+
+    let currentRoute = $('#route-action-checkout-function').data('route');
+
+    if (currentRoute === 'checkout-details') {
+        checkoutFromShipping();
+    }
+});

@@ -456,6 +456,8 @@ function calculateDynamicShippingPrice() {
                 $('#dynamic-shipping-preview-box').removeClass('d-none');
                 $('#dynamic-shipping-preview').text(response.formatted_shipping_cost);
                 $('.order-summery-aside').replaceWith(response.order_summary_view);
+                $('#home-delivery-price').text(response.home_delivery_formatted_price ?? '---');
+                $('#desk-delivery-price').text(response.desk_delivery_formatted_price ?? '---');
             } else if (response.message) {
                 toastr.error(response.message, {
                     CloseButton: true,

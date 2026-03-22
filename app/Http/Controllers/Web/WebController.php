@@ -401,6 +401,8 @@ class WebController extends Controller
                 Toastr::error($message);
             }
             return isset($response['redirect']) ? redirect($response['redirect']) : redirect('/');
+
+
         }
 
         $countryRestrictStatus = getWebConfig(name: 'delivery_country_restriction');
@@ -1666,6 +1668,8 @@ public function calculateShippingPrice(Request $request): JsonResponse
 
     $cartGroupIds = CartManager::get_cart_group_ids(type: 'checked');
     $totalDynamicShippingCost = 0;
+$totalHomeDeliveryCost = 0;
+$totalDeskDeliveryCost = 0;
 
     foreach ($cartGroupIds as $cartGroupId) {
         $cartItem = Cart::where('cart_group_id', $cartGroupId)
@@ -1705,13 +1709,19 @@ public function calculateShippingPrice(Request $request): JsonResponse
             $noestWilayaCode = (int) ltrim($wilaya->code, '0');
             $deliveryTarifs = $responseData['tarifs']['delivery'][$noestWilayaCode] ?? null;
 
-            if (!$deliveryTarifs) {
-                continue;
-            }
+if (!$deliveryTarifs) {
+    continue;
+}
 
-            $groupShippingCost = $request->selected_delivery_method === 'desk_delivery'
-                ? (float) ($deliveryTarifs['tarif_stopdesk'] ?? 0)
-                : (float) ($deliveryTarifs['tarif'] ?? 0);
+$homeDeliveryCost = (float) ($deliveryTarifs['tarif'] ?? 0);
+$deskDeliveryCost = (float) ($deliveryTarifs['tarif_stopdesk'] ?? 0);
+
+$totalHomeDeliveryCost += $homeDeliveryCost;
+$totalDeskDeliveryCost += $deskDeliveryCost;
+
+$groupShippingCost = $request->selected_delivery_method === 'desk_delivery'
+    ? $deskDeliveryCost
+    : $homeDeliveryCost;
 
             $totalDynamicShippingCost += $groupShippingCost;
 
@@ -1732,11 +1742,15 @@ public function calculateShippingPrice(Request $request): JsonResponse
     session()->put('selected_wilaya_id', $request->wilaya_id);
 
     return response()->json([
-        'status' => 1,
-        'shipping_cost' => $totalDynamicShippingCost,
-        'formatted_shipping_cost' => webCurrencyConverter(amount: $totalDynamicShippingCost),
-        'order_summary_view' => view('web-views.partials._order-summary')->render(),
-    ]);
+    'status' => 1,
+    'shipping_cost' => $totalDynamicShippingCost,
+    'formatted_shipping_cost' => webCurrencyConverter(amount: $totalDynamicShippingCost),
+    'home_delivery_cost' => $totalHomeDeliveryCost,
+    'desk_delivery_cost' => $totalDeskDeliveryCost,
+    'home_delivery_formatted_price' => webCurrencyConverter(amount: $totalHomeDeliveryCost),
+    'desk_delivery_formatted_price' => webCurrencyConverter(amount: $totalDeskDeliveryCost),
+    'order_summary_view' => view('web-views.partials._order-summary')->render(),
+]);
 }
 
 public function getNoestDesks(int|string $wilayaId): JsonResponse

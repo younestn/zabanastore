@@ -5,6 +5,69 @@
 @push('css_or_js')
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/bootstrap-select.min.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/plugin/intl-tel-input/css/intlTelInput.css') }}">
+
+    <style>
+        .delivery-method-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .delivery-method-input {
+            display: none;
+        }
+
+        .delivery-method-card {
+            display: block;
+            width: 100%;
+            min-height: 110px;
+            padding: 24px 20px;
+            border: 1px solid #d9e4ee;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            transition: all .2s ease-in-out;
+            margin-bottom: 0;
+        }
+
+        .delivery-method-input:checked + .delivery-method-card {
+            border-color: #2D9CDB;
+            background: #EEF8FF;
+            box-shadow: inset 0 0 0 1px #2D9CDB;
+        }
+
+        .delivery-method-card:hover {
+            border-color: #2D9CDB;
+        }
+
+        .delivery-method-card-content {
+            text-align: center;
+        }
+
+        .delivery-method-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f1f1f;
+            line-height: 1.7;
+            margin-bottom: 4px;
+        }
+
+        .delivery-method-card-subtitle {
+            font-size: 13px;
+            color: #7a7a7a;
+            line-height: 1.5;
+        }
+
+        .delivery-method-card-price {
+            font-weight: 700;
+        }
+
+        @media (max-width: 767px) {
+            .delivery-method-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -146,16 +209,52 @@
 <div class="col-12">
     <div class="form-group">
         <label>{{ translate('delivery_method') }} <span class="text-danger">*</span></label>
-        <div class="d-flex flex-wrap gap-3">
-            <label class="form-check-label d-flex gap-2 align-items-center">
-                <input type="radio" name="selected_delivery_method" value="home_delivery" checked>
-                {{ translate('home_delivery') }}
-            </label>
 
-            <label class="form-check-label d-flex gap-2 align-items-center">
-                <input type="radio" name="selected_delivery_method" value="desk_delivery">
-                {{ translate('desk_delivery') }}
-            </label>
+        <div class="delivery-method-grid">
+            <div>
+                <input
+                    type="radio"
+                    class="delivery-method-input"
+                    name="selected_delivery_method"
+                    id="selected_delivery_method_desk"
+                    value="desk_delivery"
+                >
+                <label for="selected_delivery_method_desk" class="delivery-method-card">
+                    <div class="delivery-method-card-content">
+                        <div class="delivery-method-card-title">
+                            {{ translate('desk_delivery') }}
+                            —
+                            <span class="delivery-method-card-price" id="desk-delivery-price">---</span>
+                        </div>
+                        <div class="delivery-method-card-subtitle">
+                            {{ translate('1_to_3_days') }}
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div>
+                <input
+                    type="radio"
+                    class="delivery-method-input"
+                    name="selected_delivery_method"
+                    id="selected_delivery_method_home"
+                    value="home_delivery"
+                    checked
+                >
+                <label for="selected_delivery_method_home" class="delivery-method-card">
+                    <div class="delivery-method-card-content">
+                        <div class="delivery-method-card-title">
+                            {{ translate('home_delivery') }}
+                            —
+                            <span class="delivery-method-card-price" id="home-delivery-price">---</span>
+                        </div>
+                        <div class="delivery-method-card-subtitle">
+                            {{ translate('1_to_3_days') }}
+                        </div>
+                    </div>
+                </label>
+            </div>
         </div>
     </div>
 </div>

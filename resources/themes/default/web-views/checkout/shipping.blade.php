@@ -131,9 +131,15 @@
 <div class="col-6">
     <div class="form-group">
         <label>{{ translate('baladiya') }} <span class="text-danger">*</span></label>
-        <select class="form-control selectpicker" data-live-search="true" name="baladiya_id" id="baladiya_id" required>
-            <option value="">{{ translate('select_baladiya') }}</option>
-        </select>
+        <input
+            type="text"
+            class="form-control"
+            name="baladiya_name"
+            id="baladiya_id"
+            value=""
+            placeholder="{{ translate('enter_real_name_of_baladiya') }}"
+            required
+        >
     </div>
 </div>
 
@@ -151,6 +157,23 @@
                 {{ translate('desk_delivery') }}
             </label>
         </div>
+    </div>
+</div>
+
+<div class="col-12 d-none" id="station_code_wrapper">
+    <div class="form-group">
+        <label>{{ translate('station') }} <span class="text-danger">*</span></label>
+        <select
+            class="form-control selectpicker"
+            data-live-search="true"
+            name="station_code"
+            id="station_code"
+            title="{{ translate('select_station') }}"
+        >
+        </select>
+        <small class="text-muted">
+            {{ translate('available_stations_for_selected_wilaya') }}
+        </small>
     </div>
 </div>
 
@@ -511,9 +534,9 @@
     <span id="default-longitude-address" data-value="{{ $defaultLocation ? $defaultLocation['lng']:'151.2195' }}"></span>
     <span id="route-action-checkout-function" data-route="checkout-details"></span>
     <span id="system-country-restrict-status" data-value="{{ $country_restrict_status }}"></span>
+    <span id="route-get-noest-desks"
+      data-url="{{ route('checkout.get-noest-desks', ['wilayaId' => '__id__']) }}"></span>
 
-    <span id="route-get-baladiyas-for-wilaya"
-      data-url="{{ route('checkout.get-baladiyas-for-wilaya', ['wilayaId' => '__id__']) }}"></span>
 
 <span id="route-calculate-shipping-price"
       data-url="{{ route('checkout.calculate-shipping-price') }}"></span>

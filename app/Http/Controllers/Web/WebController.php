@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Web;
-use App\Models\Baladiya;
+use Illuminate\Support\Facades\Log;
 use App\Models\Wilaya;
 use Illuminate\Support\Facades\Http;
 use App\Contracts\Repositories\RobotsMetaContentRepositoryInterface;
@@ -1646,29 +1646,18 @@ class WebController extends Controller
         ]);
     }
 
-    public function getBaladiyasForWilaya(int|string $wilayaId): JsonResponse
-{
-    $baladiyas = Baladiya::where('wilaya_id', $wilayaId)
-        ->orderBy('name')
-        ->get(['id', 'name']);
 
-    return response()->json([
-        'status' => 1,
-        'baladiyas' => $baladiyas,
-    ]);
-}
+
 public function calculateShippingPrice(Request $request): JsonResponse
 {
     $request->validate([
         'wilaya_id' => 'required|integer|exists:wilayas,id',
-        'baladiya_id' => 'required|integer|exists:baladiyas,id',
         'selected_delivery_method' => 'required|in:home_delivery,desk_delivery',
     ]);
 
     $wilaya = Wilaya::find($request->wilaya_id);
-    $baladiya = Baladiya::find($request->baladiya_id);
 
-    if (!$wilaya || !$baladiya) {
+    if (!$wilaya) {
         return response()->json([
             'status' => 0,
             'message' => translate('invalid_shipping_location'),
@@ -1677,7 +1666,6 @@ public function calculateShippingPrice(Request $request): JsonResponse
 
     $cartGroupIds = CartManager::get_cart_group_ids(type: 'checked');
     $totalDynamicShippingCost = 0;
-    $shippingCostByGroup = [];
 
     foreach ($cartGroupIds as $cartGroupId) {
         $cartItem = Cart::where('cart_group_id', $cartGroupId)
@@ -1725,7 +1713,6 @@ public function calculateShippingPrice(Request $request): JsonResponse
                 ? (float) ($deliveryTarifs['tarif_stopdesk'] ?? 0)
                 : (float) ($deliveryTarifs['tarif'] ?? 0);
 
-            $shippingCostByGroup[$cartGroupId] = $groupShippingCost;
             $totalDynamicShippingCost += $groupShippingCost;
 
             $cartShipping = CartShipping::firstOrNew([
@@ -1743,7 +1730,6 @@ public function calculateShippingPrice(Request $request): JsonResponse
     session()->put('dynamic_shipping_cost', $totalDynamicShippingCost);
     session()->put('selected_delivery_method', $request->selected_delivery_method);
     session()->put('selected_wilaya_id', $request->wilaya_id);
-    session()->put('selected_baladiya_id', $request->baladiya_id);
 
     return response()->json([
         'status' => 1,
@@ -1753,6 +1739,101 @@ public function calculateShippingPrice(Request $request): JsonResponse
     ]);
 }
 
+public function getNoestDesks(int|string $wilayaId): JsonResponse
+{
+    $wilaya = Wilaya::find($wilayaId);
+
+    if (!$wilaya) {
+        return response()->json([
+            'status' => 0,
+            'message' => translate('invalid_shipping_location'),
+        ], 422);
+    }
+
+    $cartGroupIds = CartManager::get_cart_group_ids(type: 'checked');
+    $vendorNoest = null;
+
+    foreach ($cartGroupIds as $cartGroupId) {
+        $cartItem = Cart::where('cart_group_id', $cartGroupId)
+            ->where('is_checked', 1)
+            ->first();
+
+        if (!$cartItem || $cartItem->product_type !== 'physical') {
+            continue;
+        }
+
+        $vendorId = $cartItem->seller_is === 'admin' ? 0 : $cartItem->seller_id;
+
+        $vendorNoest = DB::table('vendor_shipping_companies')
+            ->where('vendor_id', $vendorId)
+            ->whereRaw('LOWER(name) = ?', ['noest'])
+            ->where('status', 1)
+            ->first();
+
+        if ($vendorNoest && !empty($vendorNoest->api_token)) {
+            break;
+        }
+    }
+
+    if (!$vendorNoest || empty($vendorNoest->api_token)) {
+        return response()->json([
+            'status' => 0,
+            'message' => translate('NOEST_configuration_not_found'),
+        ], 422);
+    }
+
+    try {
+        $response = Http::timeout(15)
+            ->acceptJson()
+            ->withToken($vendorNoest->api_token)
+            ->get('https://app.noest-dz.com/api/public/desks');
+
+        $responseData = $response->json();
+
+        if (!$response->successful() || !is_array($responseData)) {
+            return response()->json([
+                'status' => 0,
+                'message' => translate('failed_to_fetch_NOEST_stations'),
+            ], 422);
+        }
+
+        $noestWilayaCode = (int) ltrim((string)$wilaya->code, '0');
+
+        $desks = collect($responseData)
+            ->map(function ($desk, $key) {
+                return [
+                    'key' => (string)$key,
+                    'code' => (string)($desk['code'] ?? ''),
+                    'name' => (string)($desk['name'] ?? ''),
+                    'address' => (string)($desk['address'] ?? ''),
+                    'phones' => $desk['phones'] ?? [],
+                    'email' => (string)($desk['email'] ?? ''),
+                ];
+            })
+            ->filter(function ($desk) use ($noestWilayaCode) {
+                $stationKeyDigits = (int) preg_replace('/\D/', '', (string)$desk['key']);
+                $stationCodeDigits = (int) preg_replace('/\D/', '', (string)$desk['code']);
+
+                return $stationKeyDigits === $noestWilayaCode || $stationCodeDigits === $noestWilayaCode;
+            })
+            ->values();
+
+        return response()->json([
+            'status' => 1,
+            'desks' => $desks,
+        ]);
+    } catch (\Throwable $exception) {
+        Log::error('NOEST desks fetch failed', [
+            'wilaya_id' => $wilayaId,
+            'message' => $exception->getMessage(),
+        ]);
+
+        return response()->json([
+            'status' => 0,
+            'message' => translate('failed_to_fetch_NOEST_stations'),
+        ], 422);
+    }
+}
 
 
 }

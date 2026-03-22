@@ -12,6 +12,7 @@ $(document).ready(function() {
         let billing_value = $('.selected_' + billingsActiveId).val();
         billing_method_select(billing_value)
     }
+    toggleStationCodeField();
 })
 
 let messageUpdateThisAddress = $('#message-update-this-address').data('text');
@@ -40,8 +41,9 @@ function shipping_method_select(get_value){
     let update_address = `<input type="hidden" name="shipping_method_id" id="shipping_method_id" value="${shipping_method_id}">
             <input type="checkbox" name="update_address" id="update_address">`+ messageUpdateThisAddress;
     $('#save_address_label').html(update_address);
-}
 
+    calculateDynamicShippingPrice();
+}
 const addressItemsBilling = document.querySelectorAll('.select_billing_address');
 addressItemsBilling.forEach(item => {
     item.addEventListener('click', function () {
@@ -329,22 +331,51 @@ function checkoutFromShipping() {
     let customerPassword = $('#customer_password');
     let customerConfirmPassword = $('#customer_confirm_password');
 
-    $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
-        }
+    let selectedDeliveryMethod = $('input[name="selected_delivery_method"]:checked').val();
+let manualCommune = $.trim($('#baladiya_id').val());
+let stationCode = $.trim($('#station_code').val());
+
+if (physical_product === 'yes' && selectedDeliveryMethod === 'home_delivery' && !manualCommune) {
+    toastr.error('Please enter baladiya name', {
+        CloseButton: true,
+        ProgressBar: true
     });
-    $.post({
-        url: $('#route-customer-choose-shipping-address-other').data('url'),
-        data: {
-            physical_product: physical_product,
-            shipping: physical_product === 'yes' ? $('#address-form').serialize() : null,
-            billing: $('#billing-address-form').serialize(),
-            billing_addresss_same_shipping: billing_address_same_shipping,
-            is_check_create_account: isCheckCreateAccount && isCheckCreateAccount.prop("checked") ? 1 : 0,
-            customer_password: customerPassword ? customerPassword.val() : null,
-            customer_confirm_password: customerConfirmPassword ? customerConfirmPassword.val() : null,
-        },
+    return;
+}
+
+if (physical_product === 'yes' && selectedDeliveryMethod === 'desk_delivery' && !stationCode) {
+    toastr.error('Please select a station', {
+        CloseButton: true,
+        ProgressBar: true
+    });
+    return;
+}
+
+let shippingSerialized = physical_product === 'yes' ? $('#address-form').serialize() : null;
+
+if (physical_product === 'yes') {
+    if (selectedDeliveryMethod === 'home_delivery') {
+        shippingSerialized += '&baladiya_name=' + encodeURIComponent(manualCommune);
+    }
+
+    if (selectedDeliveryMethod === 'desk_delivery') {
+        shippingSerialized += '&station_code=' + encodeURIComponent(stationCode);
+    }
+}
+
+$.post({
+    url: $('#route-customer-choose-shipping-address-other').data('url'),
+data: {
+    physical_product: physical_product,
+    shipping: shippingSerialized,
+    baladiya_name: manualCommune,
+    station_code: stationCode,
+    billing: $('#billing-address-form').serialize(),
+    billing_addresss_same_shipping: billing_address_same_shipping,
+    is_check_create_account: isCheckCreateAccount && isCheckCreateAccount.prop("checked") ? 1 : 0,
+    customer_password: customerPassword ? customerPassword.val() : null,
+    customer_confirm_password: customerConfirmPassword ? customerConfirmPassword.val() : null,
+},
 
         beforeSend: function () {
             $('#loading').show();
@@ -395,16 +426,13 @@ function mapsShopping() {
 }
 "use strict";
 
-function getBaladiyasUrl(wilayaId) {
-    return $('#route-get-baladiyas-for-wilaya').data('url').replace('__id__', wilayaId);
-}
+
 
 function calculateDynamicShippingPrice() {
     let wilayaId = $('#wilaya_id').val();
-    let baladiyaId = $('#baladiya_id').val();
     let selectedDeliveryMethod = $('input[name="selected_delivery_method"]:checked').val();
 
-    if (!wilayaId || !baladiyaId || !selectedDeliveryMethod) {
+    if (!wilayaId || !selectedDeliveryMethod) {
         return;
     }
 
@@ -418,7 +446,6 @@ function calculateDynamicShippingPrice() {
         url: $('#route-calculate-shipping-price').data('url'),
         data: {
             wilaya_id: wilayaId,
-            baladiya_id: baladiyaId,
             selected_delivery_method: selectedDeliveryMethod
         },
         beforeSend: function () {
@@ -448,32 +475,10 @@ function calculateDynamicShippingPrice() {
     });
 }
 
-$(document).on('change', '#wilaya_id', function () {
-    let wilayaId = $(this).val();
-
-    $('#baladiya_id').html('<option value="">' + 'Loading...' + '</option>').selectpicker('refresh');
-
-    $.get({
-        url: getBaladiyasUrl(wilayaId),
-        success: function (response) {
-            let options = '<option value="">' + 'Select Baladiya' + '</option>';
-
-            if (response.status === 1 && response.baladiyas.length > 0) {
-                response.baladiyas.forEach(function (baladiya) {
-                    options += `<option value="${baladiya.id}" data-name="${baladiya.name}">${baladiya.name}</option>`;
-                });
-            }
-
-            $('#baladiya_id').html(options).selectpicker('refresh');
-            calculateDynamicShippingPrice();
-        }
-    });
-});
-
-$(document).on('change', '#baladiya_id, input[name="selected_delivery_method"]', function () {
+$(document).on('change', '#wilaya_id, input[name="selected_delivery_method"]', function () {
+    toggleStationCodeField();
     calculateDynamicShippingPrice();
 });
-
 
 $(document).off('click.checkoutShipping', '.action-checkout-function').on('click.checkoutShipping', '.action-checkout-function', function (e) {
     e.preventDefault();
@@ -484,3 +489,61 @@ $(document).off('click.checkoutShipping', '.action-checkout-function').on('click
         checkoutFromShipping();
     }
 });
+function getNoestDesksUrl(wilayaId) {
+    return $('#route-get-noest-desks').data('url').replace('__id__', wilayaId);
+}
+
+function toggleStationCodeField() {
+    let selectedDeliveryMethod = $('input[name="selected_delivery_method"]:checked').val();
+
+    if (selectedDeliveryMethod === 'desk_delivery') {
+        $('#station_code_wrapper').removeClass('d-none');
+        fetchNoestDesks();
+    } else {
+        $('#station_code_wrapper').addClass('d-none');
+        $('#station_code').html('').selectpicker('refresh');
+    }
+}
+
+function fetchNoestDesks() {
+    let wilayaId = $('#wilaya_id').val();
+    let selectedDeliveryMethod = $('input[name="selected_delivery_method"]:checked').val();
+
+    if (!wilayaId || selectedDeliveryMethod !== 'desk_delivery') {
+        $('#station_code').html('').selectpicker('refresh');
+        return;
+    }
+
+    $.get({
+        url: getNoestDesksUrl(wilayaId),
+        beforeSend: function () {
+            $('#loading').show();
+        },
+        success: function (response) {
+            let options = '<option value="">' + 'Select Station' + '</option>';
+
+            if (response.status === 1 && response.desks.length > 0) {
+                response.desks.forEach(function (desk) {
+                    let label = desk.name;
+                    if (desk.address) {
+                        label += ' - ' + desk.address;
+                    }
+
+                    options += `<option value="${desk.code}" data-name="${desk.name}">${label}</option>`;
+                });
+            }
+
+            $('#station_code').html(options).selectpicker('refresh');
+        },
+        complete: function () {
+            $('#loading').hide();
+        },
+        error: function (xhr) {
+            toastr.error(xhr.responseJSON?.message ?? 'Failed to load NOEST stations', {
+                CloseButton: true,
+                ProgressBar: true
+            });
+            $('#station_code').html('').selectpicker('refresh');
+        }
+    });
+}

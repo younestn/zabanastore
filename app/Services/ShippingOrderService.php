@@ -22,7 +22,12 @@ class ShippingOrderService
         }
 
         $payload = self::buildNoestPayload($order, $vendorNoest);
-        if (!$payload) {
+                if (!$payload) {
+            Log::warning('NOEST payload generation failed', [
+                'order_id' => $order->id,
+                'shipping_address_data' => $order->shipping_address_data,
+            ]);
+
             self::persistShipmentData(
                 order: $order,
                 tracking: null,
@@ -47,6 +52,19 @@ class ShippingOrderService
 
             $success = $httpResponse->successful()
                 && (($responseData['success'] ?? true) === true);
+
+                            Log::info('NOEST create shipment response', [
+                'order_id' => $order->id,
+                'http_status' => $httpResponse->status(),
+                'success' => $success,
+                'tracking' => $tracking,
+                'reference' => $payload['reference'] ?? null,
+                'user_guid' => $payload['user_guid'] ?? null,
+                'wilaya_id' => $payload['wilaya_id'] ?? null,
+                'commune' => $payload['commune'] ?? null,
+                'stop_desk' => $payload['stop_desk'] ?? null,
+                'response' => $responseData,
+            ]);
 
             self::persistShipmentData(
                 order: $order,
@@ -73,13 +91,24 @@ class ShippingOrderService
         }
     }
 
-    private static function shouldCreateNoestShipment(Order $order): bool
+        private static function shouldCreateNoestShipment(Order $order): bool
     {
-        return (int)($order->shipping_method_id ?? 0) === 0
-            && ($order->shipping_type ?? '') === 'order_wise'
-            && !empty($order->shipping_address_data);
-    }
+        $shippingAddress = (array)($order->shipping_address_data ?? []);
 
+    $deliveryMethod = (string)($shippingAddress['noest_delivery_method'] ?? '');
+
+$hasHomeRequirements = $deliveryMethod === 'home_delivery'
+    && !empty($shippingAddress['noest_baladiya_name']);
+
+$hasDeskRequirements = $deliveryMethod === 'desk_delivery'
+    && !empty($shippingAddress['noest_station_code']);
+
+return ($order->shipping_type ?? '') === 'order_wise'
+    && !empty($shippingAddress)
+    && !empty($shippingAddress['noest_wilaya_code'])
+    && !empty($shippingAddress['noest_delivery_method'])
+    && ($hasHomeRequirements || $hasDeskRequirements);
+    }
     private static function getVendorNoestConfig(Order $order): ?object
     {
         $vendorId = $order->seller_is === 'admin' ? 0 : $order->seller_id;
@@ -92,49 +121,88 @@ class ShippingOrderService
     }
 
     private static function buildNoestPayload(Order $order, object $vendorNoest): ?array
-    {
-        $shippingAddress = (array)($order->shipping_address_data ?? []);
+{
+    $shippingAddress = (array)($order->shipping_address_data ?? []);
 
-        $client = trim((string)($shippingAddress['contact_person_name'] ?? ''));
-        $phone = self::normalizePhone((string)($shippingAddress['phone'] ?? ''));
-        $address = trim((string)($shippingAddress['address'] ?? ''));
-        $wilayaId = (int)ltrim((string)($shippingAddress['noest_wilaya_code'] ?? ''), '0');
-        $commune = trim((string)($shippingAddress['noest_baladiya_name'] ?? ($shippingAddress['city'] ?? '')));
-        $deliveryMethod = (string)($shippingAddress['noest_delivery_method'] ?? 'home_delivery');
+    $client = trim((string)($shippingAddress['contact_person_name'] ?? ''));
+    $phone = self::normalizePhone((string)($shippingAddress['phone'] ?? ''));
+    $address = trim((string)($shippingAddress['address'] ?? ''));
+    $wilayaId = (int) ltrim((string)($shippingAddress['noest_wilaya_code'] ?? ''), '0');
+    $commune = self::normalizeNoestCommune((string)($shippingAddress['noest_baladiya_name'] ?? ''));
+    $deliveryMethod = (string)($shippingAddress['noest_delivery_method'] ?? 'home_delivery');
+    $stationCode = trim((string)($shippingAddress['noest_station_code'] ?? ''));
 
-        $products = collect($order->details ?? [])
-            ->map(function ($detail) {
-                $productDetails = is_string($detail->product_details)
-                    ? json_decode($detail->product_details, true)
-                    : (array)$detail->product_details;
+    $products = collect($order->details ?? [])
+        ->map(function ($detail) {
+            $productDetails = is_string($detail->product_details)
+                ? json_decode($detail->product_details, true)
+                : (array)$detail->product_details;
 
-                return $productDetails['name'] ?? null;
-            })
-            ->filter()
-            ->implode(', ');
+            return $productDetails['name'] ?? null;
+        })
+        ->filter()
+        ->implode(', ');
 
-        if (!$client || !$phone || !$address || !$wilayaId || !$commune || !$products) {
-            return null;
-        }
-
-        return [
-            'api_token' => $vendorNoest->api_token,
-            'user_guid' => $vendorNoest->noest_guid,
-            'reference' => (string)$order->order_group_id,
-            'client' => mb_substr($client, 0, 255),
-            'phone' => $phone,
-            'phone_2' => null,
-            'adresse' => mb_substr($address, 0, 255),
-            'wilaya_id' => $wilayaId,
-            'commune' => mb_substr($commune, 0, 255),
-            'montant' => (float)$order->order_amount,
-            'remarque' => mb_substr((string)($order->order_note ?? ''), 0, 255),
-            'produit' => mb_substr($products, 0, 255),
-            'type_id' => 1,
-            'type' => 1,
-            'stop_desk' => $deliveryMethod === 'desk_delivery' ? 1 : 0,
-        ];
+    if (!$client || !$phone || !$address || !$wilayaId || !$products) {
+        return null;
     }
+
+    if ($deliveryMethod === 'home_delivery' && !$commune) {
+        return null;
+    }
+
+    if ($deliveryMethod === 'desk_delivery' && !$stationCode) {
+        return null;
+    }
+
+    Log::info('NOEST commune payload debug', [
+        'order_id' => $order->id,
+        'local_city' => $shippingAddress['city'] ?? null,
+        'noest_baladiya_name' => $shippingAddress['noest_baladiya_name'] ?? null,
+        'normalized_commune' => $commune,
+        'wilaya_id' => $wilayaId,
+        'station_code' => $stationCode,
+        'delivery_method' => $deliveryMethod,
+    ]);
+
+    $payload = [
+        'api_token' => $vendorNoest->api_token,
+        'user_guid' => $vendorNoest->noest_guid,
+        'reference' => (string)$order->order_group_id,
+        'client' => mb_substr($client, 0, 255),
+        'phone' => $phone,
+        'phone_2' => null,
+        'adresse' => mb_substr($address, 0, 255),
+        'wilaya_id' => $wilayaId,
+        'montant' => (float)$order->order_amount,
+        'remarque' => mb_substr((string)($order->order_note ?? ''), 0, 255),
+        'produit' => mb_substr($products, 0, 255),
+        'type_id' => 1,
+        'type' => 1,
+        'stop_desk' => $deliveryMethod === 'desk_delivery' ? 1 : 0,
+    ];
+
+    if ($deliveryMethod === 'home_delivery') {
+        $payload['commune'] = mb_substr($commune, 0, 255);
+    }
+
+    if ($deliveryMethod === 'desk_delivery') {
+        $payload['station_code'] = $stationCode;
+    }
+
+    return $payload;
+}
+    private static function normalizeNoestCommune(string $commune): string
+{
+    $commune = preg_replace('/\s+/u', ' ', $commune);
+    $commune = trim((string)$commune);
+
+    if ($commune === '') {
+        return '';
+    }
+
+    return mb_convert_case(mb_strtolower($commune, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+}
 
     private static function normalizePhone(string $phone): string
     {

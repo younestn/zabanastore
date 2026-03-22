@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Customer;
-
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Utils\Helpers;
 use App\Http\Controllers\Controller;
@@ -79,6 +79,8 @@ class SystemController extends Controller
 
         parse_str($request['shipping'], $shipping);
         parse_str($request['billing'], $billing);
+
+
         $is_guest = !auth('customer')->check();
 
         if (isset($shipping['save_address']) && $shipping['save_address'] == 'on') {
@@ -300,6 +302,57 @@ class SystemController extends Controller
         $billing = [];
         parse_str($request['shipping'], $shipping);
         parse_str($request['billing'], $billing);
+
+        Log::info('Parsed shipping payload debug', [
+    'shipping' => $shipping,
+    'request_baladiya_name' => $request->input('baladiya_name'),
+    'request_station_code' => $request->input('station_code'),
+]);
+
+$manualCommune = trim((string)($shipping['baladiya_name'] ?? $request->input('baladiya_name') ?? ''));
+$stationCode = trim((string)($shipping['station_code'] ?? $request->input('station_code') ?? ''));
+$selectedDeliveryMethod = (string)($shipping['selected_delivery_method'] ?? '');
+
+if (($request['physical_product'] ?? null) == 'yes') {
+    if (
+        empty($shipping['wilaya_id']) ||
+        $selectedDeliveryMethod === ''
+    ) {
+        return response()->json([
+            'errors' => translate('Fill_all_required_fields_of_shipping_address')
+        ], 403);
+    }
+
+    if ($selectedDeliveryMethod === 'home_delivery' && $manualCommune === '') {
+        return response()->json([
+            'errors' => translate('Fill_all_required_fields_of_shipping_address')
+        ], 403);
+    }
+
+    if ($selectedDeliveryMethod === 'desk_delivery' && $stationCode === '') {
+        return response()->json([
+            'errors' => translate('station_code_is_required_for_desk_delivery')
+        ], 403);
+    }
+
+    session()->put('selected_wilaya_id', (int)$shipping['wilaya_id']);
+    session()->put('selected_baladiya_name', $manualCommune);
+    session()->put('selected_delivery_method', $selectedDeliveryMethod);
+    session()->put('selected_station_code', $stationCode);
+    session()->forget('selected_baladiya_id');
+
+    Log::info('Manual commune and station saved in session', [
+        'wilaya_id' => session('selected_wilaya_id'),
+        'selected_baladiya_name' => session('selected_baladiya_name'),
+        'selected_delivery_method' => session('selected_delivery_method'),
+        'selected_station_code' => session('selected_station_code'),
+        'raw_shipping_baladiya_name' => $shipping['baladiya_name'] ?? null,
+        'raw_shipping_station_code' => $shipping['station_code'] ?? null,
+    ]);
+}
+
+
+
 
         if (isset($shipping['phone'])) {
             $shippingPhoneValue = preg_replace('/[^0-9]/', '', $shipping['phone']);

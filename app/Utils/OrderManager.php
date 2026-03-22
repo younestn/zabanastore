@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Utils;
-use App\Models\Baladiya;
+use Illuminate\Support\Facades\Log;
 use App\Models\Wilaya;
 use App\Services\ShippingOrderService;
 use App\Models\OrderDetailsRewards;
@@ -791,17 +791,32 @@ class OrderManager
 $billingAddress = getWebConfig('billing_input_by_customer') ? ShippingAddress::find($cartData['billing_address_id']) : null;
 
 $selectedWilaya = session('selected_wilaya_id') ? Wilaya::find(session('selected_wilaya_id')) : null;
-$selectedBaladiya = session('selected_baladiya_id') ? Baladiya::find(session('selected_baladiya_id')) : null;
 $selectedDeliveryMethod = session('selected_delivery_method');
+$selectedBaladiyaName = trim((string)(session('selected_baladiya_name') ?? ''));
+$selectedStationCode = trim((string)(session('selected_station_code') ?? ''));
+
+Log::info('OrderManager manual commune debug', [
+    'order_id' => $orderId,
+    'selected_wilaya_id' => session('selected_wilaya_id'),
+    'selected_baladiya_name' => $selectedBaladiyaName,
+    'selected_delivery_method' => $selectedDeliveryMethod,
+    'selected_station_code' => $selectedStationCode,
+]);
 
 $shippingAddressData = $shippingAddress ? json_encode(array_merge($shippingAddress->toArray(), [
     'noest_wilaya_id' => $selectedWilaya?->id,
     'noest_wilaya_code' => $selectedWilaya?->code,
     'noest_wilaya_name' => $selectedWilaya?->name,
-    'noest_baladiya_id' => $selectedBaladiya?->id,
-    'noest_baladiya_name' => $selectedBaladiya?->name,
+    'noest_baladiya_id' => null,
+    'noest_baladiya_name' => $selectedBaladiyaName,
     'noest_delivery_method' => $selectedDeliveryMethod,
+    'noest_station_code' => $selectedStationCode,
 ]), JSON_UNESCAPED_UNICODE) : null;
+
+Log::info('OrderManager shipping_address_data debug', [
+    'order_id' => $orderId,
+    'shipping_address_data' => $shippingAddressData,
+]);
 
 $billingAddressData = $billingAddress
     ? json_encode($billingAddress->toArray(), JSON_UNESCAPED_UNICODE)

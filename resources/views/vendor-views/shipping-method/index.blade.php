@@ -195,42 +195,49 @@ use Illuminate\Support\Facades\Session;
     </div>
 </div>
 
-                        <div class="row">
-                            <div class="col-xl-4 col-md-6">
-                                <div class="form-group">
-                                    <div class="row justify-content-center">
-                                        <div class="col-md-12">
-                                            <label class="title-color d-flex" for="title">{{translate('title')}}</label>
-                                            <input type="text" name="title" class="form-control" placeholder="{{translate('title')}}" required>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-4 col-md-6">
-                                <div class="form-group">
-                                    <div class="row justify-content-center">
-                                        <div class="col-md-12">
-                                            <label class="title-color d-flex" for="duration">{{translate('duration')}}</label>
-                                            <input type="text" name="duration" class="form-control" placeholder="{{translate('ex').':'.translate('4_to_6_days')}}" required>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-4 col-md-6">
-                                <div class="form-group">
-                                    <div class="row justify-content-center">
-                                        <div class="col-md-12">
-                                            <label class="title-color d-flex" for="cost">{{translate('cost')}}</label>
-                                            <input type="number" min="0" step="0.01" max="1000000" name="cost" class="form-control" placeholder="{{translate('ex').':'.usdToDefaultCurrency('10')}}" required>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-end gap-10">
-                            <button type="submit" class="btn btn--primary px-5">{{translate('submit')}}</button>
-                        </div>
-                    </form>
+<form action="{{route('vendor.business-settings.shipping-method.index')}}" method="post">
+    @csrf
+
+    <div class="row">
+        <div class="col-xl-4 col-md-6">
+            <div class="form-group">
+                <div class="row justify-content-center">
+                    <div class="col-md-12">
+                        <label class="title-color d-flex" for="title">{{translate('title')}}</label>
+                        <input type="text" name="title" class="form-control" placeholder="{{translate('title')}}" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="form-group">
+                <div class="row justify-content-center">
+                    <div class="col-md-12">
+                        <label class="title-color d-flex" for="duration">{{translate('duration')}}</label>
+                        <input type="text" name="duration" class="form-control" placeholder="{{translate('ex').':'.translate('4_to_6_days')}}" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="form-group">
+                <div class="row justify-content-center">
+                    <div class="col-md-12">
+                        <label class="title-color d-flex" for="cost">{{translate('cost')}}</label>
+                        <input type="number" min="0" step="0.01" max="1000000" name="cost" class="form-control" placeholder="{{translate('ex').':'.usdToDefaultCurrency('10')}}" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-10">
+        <button type="submit" class="btn btn--primary px-5">{{translate('submit')}}</button>
+    </div>
+</form>
+
                 </div>
             </div>
 

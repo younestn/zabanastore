@@ -154,6 +154,8 @@ Route::get('checkout/get-baladiyas-for-wilaya/{wilayaId}', [WebController::class
 
 Route::post('checkout/calculate-shipping-price', [WebController::class, 'calculateShippingPrice'])
     ->name('checkout.calculate-shipping-price');
+
+    Route::get('checkout/get-noest-desks/{wilayaId}', 'getNoestDesks')->name('checkout.get-noest-desks');
         //wallet payment
         Route::get('checkout-complete-wallet', 'checkout_complete_wallet')->name('checkout-complete-wallet');
 

@@ -3,4 +3,4 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/lakwpxhf/zabana.store
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/rsync -av --delete --exclude='.git' --exclude='.env' --exclude='storage/*' --exclude='bootstrap/cache/*' --exclude='node_modules' ./ $DEPLOYPATH/
+    - /bin/rsync -av --exclude='.git' --exclude='.env' --exclude='node_modules' --exclude='storage/*' --exclude='bootstrap/cache/*' ./ $DEPLOYPATH/

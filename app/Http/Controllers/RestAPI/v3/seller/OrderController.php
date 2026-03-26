@@ -37,7 +37,61 @@ class OrderController extends Controller
     )
     {
     }
+private function firstNotEmpty(...$values)
+{
+    foreach ($values as $value) {
+        if (!is_null($value) && trim((string)$value) !== '') {
+            return $value;
+        }
+    }
 
+    return null;
+}
+
+private function normalizeAddressData($addressData)
+{
+    if (empty($addressData)) {
+        return $addressData;
+    }
+
+    $address = is_array($addressData)
+        ? $addressData
+        : json_decode(json_encode($addressData), true);
+
+    if (!is_array($address)) {
+        return $addressData;
+    }
+
+    $wilayaName = $this->firstNotEmpty(
+        $address['state'] ?? null,
+        $address['wilaya_name'] ?? null,
+        $address['wilaya'] ?? null,
+        $address['state_name'] ?? null,
+        $address['province_name'] ?? null,
+        $address['province'] ?? null,
+        $address['noest_wilaya_name'] ?? null
+    );
+
+    $communeName = $this->firstNotEmpty(
+        $address['commune'] ?? null,
+        $address['commune_name'] ?? null,
+        $address['district'] ?? null,
+        $address['municipality'] ?? null,
+        $address['noest_baladiya_name'] ?? null
+    );
+
+    if ($wilayaName) {
+        $address['state'] = $address['state'] ?? $wilayaName;
+        $address['wilaya_name'] = $address['wilaya_name'] ?? $wilayaName;
+    }
+
+    if ($communeName) {
+        $address['commune'] = $address['commune'] ?? $communeName;
+        $address['commune_name'] = $address['commune_name'] ?? $communeName;
+    }
+
+    return $address;
+}
     public function list(Request $request)
     {
         $seller = $request->seller;
@@ -53,32 +107,38 @@ class OrderController extends Controller
             ->latest()
             ->paginate($request['limit'], ['*'], 'page', $request['offset']);
 
-        $orders?->map(function ($data) {
-            if (isset($data['offlinePayments'])) {
-                $data['offlinePayments']->payment_info = $data->offlinePayments->payment_info;
-            }
-
-            $totalTaxAmount = 0;
-            $totalProductPrice = 0;
-            $totalProductDiscount = 0;
-            if (isset($data['orderDetails']) && count($data['orderDetails']) > 0) {
-                $totalTaxAmount = $data['orderDetails']->sum('tax');
-                $totalProductPrice = $data['orderDetails']->sum('price');
-                $totalProductDiscount = $data['orderDetails']->sum('discount');
-            }
-            $data['total_tax_amount'] = $totalTaxAmount;
-            $data['total_product_price'] = $totalProductPrice;
-            $data['total_product_discount'] = $totalProductDiscount;
-            return $data;
-        });
-
-        return response()->json([
-            'total_size' => $orders->total(),
-            'limit' => (int)$request['limit'],
-            'offset' => (int)$request['offset'],
-            'orders' => $orders->items()
-        ], 200);
+        $formattedOrders = collect($orders->items())->map(function ($data) {
+    if (isset($data['offlinePayments'])) {
+        $data['offlinePayments']->payment_info = $data->offlinePayments->payment_info;
     }
+
+    $totalTaxAmount = 0;
+    $totalProductPrice = 0;
+    $totalProductDiscount = 0;
+
+    if (isset($data['orderDetails']) && count($data['orderDetails']) > 0) {
+        $totalTaxAmount = $data['orderDetails']->sum('tax');
+        $totalProductPrice = $data['orderDetails']->sum('price');
+        $totalProductDiscount = $data['orderDetails']->sum('discount');
+    }
+
+    $data['total_tax_amount'] = $totalTaxAmount;
+    $data['total_product_price'] = $totalProductPrice;
+    $data['total_product_discount'] = $totalProductDiscount;
+
+    $data->shipping_address_data = $this->normalizeAddressData($data->shipping_address_data);
+    $data->billing_address_data = $this->normalizeAddressData($data->billing_address_data);
+
+    return $data;
+})->values();
+
+return response()->json([
+    'total_size' => $orders->total(),
+    'limit' => (int) $request['limit'],
+    'offset' => (int) $request['offset'],
+    'orders' => $formattedOrders,
+], 200);
+}
 
     public function details(Request $request, $id): JsonResponse
     {
@@ -92,6 +152,10 @@ class OrderController extends Controller
                 $product['digital_file_ready_full_url'] = $checkFilePath;
             }
             $detail['product_details'] = Helpers::product_data_formatting_for_json_data($product);
+            if ($detail->order) {
+    $detail->order->shipping_address_data = $this->normalizeAddressData($detail->order->shipping_address_data);
+    $detail->order->billing_address_data = $this->normalizeAddressData($detail->order->billing_address_data);
+}
         }
 
         return response()->json($detailsList, 200);

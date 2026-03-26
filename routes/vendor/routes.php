@@ -23,7 +23,7 @@ use App\Http\Controllers\Vendor\Auth\LoginController;
 use App\Enums\ViewPaths\Vendor\Order;
 use App\Http\Controllers\Vendor\Auth\RegisterController;
 use App\Http\Controllers\Vendor\DashboardController;
-use App\Http\Controllers\Vendor\VendorAdRequestController;
+use App\Http\Controllers\VendorAdRequestController;
 use App\Http\Controllers\Vendor\ChattingController;
 use App\Http\Controllers\Vendor\Coupon\CouponController;
 use App\Http\Controllers\Vendor\CustomerController;
@@ -44,7 +44,7 @@ use App\Http\Controllers\Vendor\Shipping\CategoryShippingCostController;
 use App\Http\Controllers\Vendor\Shipping\ShippingMethodController;
 use App\Http\Controllers\Vendor\Shipping\ShippingTypeController;
 use App\Http\Controllers\Vendor\ShopController;
-use App\Http\Controllers\Vendor\ReportController;
+// use App\Http\Controllers\Vendor\ReportController;
 use App\Http\Controllers\Vendor\SystemController;
 use App\Http\Controllers\Vendor\WithdrawController;
 use Illuminate\Support\Facades\Route;
@@ -354,7 +354,7 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('order-report-excel', 'orderReportExportExcel')->name('order-report-excel');
                     Route::get('order-report-pdf', 'exportOrderReportInPDF')->name('order-report-pdf');
                 });
-                Route::any('set-date', [ReportController::class, "set_date"])->name("set-date");
+                // Route::any('set-date', [ReportController::class, "set_date"])->name("set-date");
 
             });
             Route::group(['prefix' => 'transaction', 'as' => 'transaction.'], function () {

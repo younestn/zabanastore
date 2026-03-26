@@ -225,11 +225,15 @@
             <div class="container px-10px">
                 <div class="collapse navbar-collapse text-align-direction" id="navbarCollapse">
                     <div class="w-100 d-md-none text-align-direction">
-                        <button class="navbar-toggler p-0" type="button" data-toggle="collapse"
-                                data-target="#navbarCollapse">
-                            <i class="tio-clear __text-26px"></i>
-                        </button>
-                    </div>
+    <button class="navbar-toggler zabana-mobile-menu-toggle" type="button"
+        data-toggle="collapse"
+        data-target="#navbarCollapse"
+        aria-label="{{ translate('expand_Menu') }}">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+</div>
 
                     <ul class="navbar-nav d-block d-md-none">
                         <li class="nav-item dropdown {{request()->is('/')?'active':''}}">

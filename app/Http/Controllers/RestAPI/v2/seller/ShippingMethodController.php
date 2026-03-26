@@ -160,4 +160,6 @@ class ShippingMethodController extends Controller
 
         return response()->json(['message' => translate('successfully_deleted')], 200);
     }
+    
+    
 }

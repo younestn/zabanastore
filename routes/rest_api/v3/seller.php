@@ -183,6 +183,9 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
                 Route::put('status', 'status_update');
                 Route::put('update/{id}', 'update');
                 Route::delete('delete/{id}', 'delete');
+                Route::get('noest-settings', 'get_noest_settings');
+Route::post('noest-settings', 'save_noest_settings');
+Route::post('test-noest-connection', 'test_noest_connection');
             });
         });
 
@@ -273,6 +276,6 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
         });
     });
 
-    Route::post('ls-lib-update', 'LsLibController@lib_update');
+    // Route::post('ls-lib-update', 'LsLibController@lib_update');
 });
 

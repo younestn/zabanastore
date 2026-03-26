@@ -48,4 +48,10 @@ return [
         'redirect' => env('TWITTER_SERVICE_CALLBACK'),
     ],
 
+    'noest' => [
+    'base_url' => env('NOEST_BASE_URL', 'https://app.noest-dz.com'),
+    'stations_endpoint' => env('NOEST_STATIONS_ENDPOINT', ''), // مثال: /api/public/xxxxx
+    'tariffs_endpoint' => env('NOEST_TARIFFS_ENDPOINT', ''),   // مثال: /api/public/xxxxx
+],
+
 ];

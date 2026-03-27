@@ -582,37 +582,75 @@
                                     @endif
                                 </div>
                                 <div class="d-flex flex-column gap-2">
-                                    <div>
-                                        <span>{{translate('name')}} :</span>
-                                        <strong>{{$shippingAddress->contact_person_name}}</strong> {{ $order->is_guest ? '('. translate('guest_customer') .')':''}}
-                                    </div>
-                                    <div>
-                                        <span>{{translate('contact')}} :</span>
-                                        <strong>{{$shippingAddress->phone}}</strong>
-                                    </div>
-                                    @if ($order->is_guest && $shippingAddress->email)
-                                        <div>
-                                            <span>{{translate('email')}} :</span>
-                                            <strong>{{$shippingAddress->email}}</strong>
-                                        </div>
-                                    @endif
-                                    <div>
-                                        <span>{{translate('country')}} :</span>
-                                        <strong>{{$shippingAddress->country}}</strong>
-                                    </div>
-                                    <div>
-                                        <span>{{translate('city')}} :</span>
-                                        <strong>{{$shippingAddress->city}}</strong>
-                                    </div>
-                                    <div>
-                                        <span>{{translate('zip_code')}} :</span>
-                                        <strong>{{$shippingAddress->zip}}</strong>
-                                    </div>
-                                    <div class="d-flex align-items-start gap-2">
-                                        <img src="{{asset('public/assets/back-end/img/location.png')}}" alt="">
-                                        {{$shippingAddress->address}}
-                                    </div>
-                                </div>
+    <div>
+        <span>{{translate('name')}} :</span>
+        <strong>{{$shippingAddress->contact_person_name}}</strong> {{ $order->is_guest ? '('. translate('guest_customer') .')':''}}
+    </div>
+
+    <div>
+        <span>{{translate('contact')}} :</span>
+        <strong>{{$shippingAddress->phone}}</strong>
+    </div>
+
+    @if ($order->is_guest && $shippingAddress->email)
+        <div>
+            <span>{{translate('email')}} :</span>
+            <strong>{{$shippingAddress->email}}</strong>
+        </div>
+    @endif
+
+    <div>
+        <span>{{translate('country')}} :</span>
+        <strong>{{$shippingAddress->country}}</strong>
+    </div>
+
+    <div>
+        <span>{{translate('city')}} :</span>
+        <strong>{{$shippingAddress->city}}</strong>
+    </div>
+
+    @if(!empty($shippingAddress->noest_wilaya_name))
+        <div>
+            <span>{{translate('wilaya')}} :</span>
+            <strong>{{$shippingAddress->noest_wilaya_name}}</strong>
+        </div>
+    @endif
+
+    @if(!empty($shippingAddress->noest_baladiya_name))
+        <div>
+            <span>{{translate('baladiya')}} :</span>
+            <strong>{{$shippingAddress->noest_baladiya_name}}</strong>
+        </div>
+    @endif
+
+    @if(!empty($shippingAddress->noest_delivery_method))
+        <div>
+            <span>{{translate('delivery_method')}} :</span>
+            <strong>
+                {{ $shippingAddress->noest_delivery_method == 'desk_delivery'
+                    ? translate('desk_delivery')
+                    : translate('home_delivery') }}
+            </strong>
+        </div>
+    @endif
+
+    @if(!empty($shippingAddress->noest_station_code) && $shippingAddress->noest_delivery_method == 'desk_delivery')
+        <div>
+            <span>{{translate('station_code')}} :</span>
+            <strong>{{$shippingAddress->noest_station_code}}</strong>
+        </div>
+    @endif
+
+    <div>
+        <span>{{translate('zip_code')}} :</span>
+        <strong>{{$shippingAddress->zip}}</strong>
+    </div>
+
+    <div class="d-flex align-items-start gap-2">
+        <img src="{{asset('public/assets/back-end/img/location.png')}}" alt="">
+        {{$shippingAddress->address}}
+    </div>
+</div>
                             </div>
                         @else
                             <div class="card-body">

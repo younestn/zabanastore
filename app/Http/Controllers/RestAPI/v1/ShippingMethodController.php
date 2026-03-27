@@ -13,6 +13,7 @@ use App\Utils\OrderManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class ShippingMethodController extends Controller
 {
@@ -27,47 +28,148 @@ class ShippingMethodController extends Controller
     }
 
     public function shipping_methods_by_seller(Request $request, $id, $seller_is)
-    {
-        $seller_is = $seller_is == 'admin' ? 'admin' : 'seller';
-        return response()->json(Helpers::getShippingMethods($id, $seller_is), 200);
-    }
+{
+    $seller_is = $seller_is == 'admin' ? 'admin' : 'seller';
+    $vendorId = $seller_is == 'admin' ? 0 : (int) $id;
 
-    public function choose_for_order(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'cart_group_id' => 'required',
-            'id' => 'required'
-        ], [
-            'id.required' => translate('shipping_id_is_required')
+    $defaultMethods = Helpers::getShippingMethods($id, $seller_is)->map(function ($item) {
+        return [
+            'id' => (int) $item->id,
+            'creator_id' => (int) ($item->creator_id ?? 0),
+            'creator_type' => (string) $item->creator_type,
+            'title' => (string) ($item->title ?? ''),
+            'cost' => (double) ($item->cost ?? 0),
+            'duration' => (string) ($item->duration ?? ''),
+            'status' => (int) ($item->status ?? 0),
+            'created_at' => optional($item->created_at)->toJSON(),
+            'updated_at' => optional($item->updated_at)->toJSON(),
+
+            'provider_name' => (string) ($item->title ?? ''),
+            'service_key' => 'shipping_method',
+            'logo' => null,
+            'delivery_type' => 'home_delivery',
+            'delivery_type_label' => 'Home Delivery',
+            'company_name' => (string) ($item->title ?? ''),
+            'estimated_days' => (string) ($item->duration ?? ''),
+            'is_third_party' => 0,
+            'is_noest' => 0,
+            'station_code' => null,
+        ];
+    })->values();
+
+    $customMethods = collect();
+
+    $noest = DB::table('vendor_shipping_companies')
+        ->where('vendor_id', $vendorId)
+        ->whereRaw('LOWER(name) = ?', ['noest'])
+        ->where('status', 1)
+        ->first();
+
+    if ($noest && !empty($noest->api_token) && !empty($noest->noest_guid)) {
+        $baseId = 800000 + (((int) $noest->id) * 10);
+
+        $customMethods->push([
+            'id' => $baseId + 1,
+            'creator_id' => $vendorId,
+            'creator_type' => $seller_is,
+            'title' => 'Noest Home',
+            'cost' => (double) ($noest->home_delivery_price ?? 0),
+            'duration' => (string) ($noest->delivery_time ?? '24-48h'),
+            'status' => 1,
+            'created_at' => now()->toJSON(),
+            'updated_at' => now()->toJSON(),
+
+            'provider_name' => 'Noest',
+            'service_key' => 'noest_home_delivery',
+            'logo' => null,
+            'delivery_type' => 'home_delivery',
+            'delivery_type_label' => 'Home Delivery',
+            'company_name' => 'Noest',
+            'estimated_days' => (string) ($noest->delivery_time ?? '24-48h'),
+            'is_third_party' => 1,
+            'is_noest' => 1,
+            'station_code' => null,
         ]);
 
-        if ($validator->errors()->count() > 0) {
-            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)]);
-        }
+        $customMethods->push([
+            'id' => $baseId + 2,
+            'creator_id' => $vendorId,
+            'creator_type' => $seller_is,
+            'title' => 'Noest Desk',
+            'cost' => (double) ($noest->desk_delivery_price ?? 0),
+            'duration' => (string) ($noest->delivery_time ?? '24-48h'),
+            'status' => 1,
+            'created_at' => now()->toJSON(),
+            'updated_at' => now()->toJSON(),
 
-        if ($request['cart_group_id'] == 'all_cart_group') {
-            foreach (CartManager::get_cart_group_ids(request: $request) as $group_id) {
-                $request['cart_group_id'] = $group_id;
-                self::insert_into_cart_shipping($request);
-            }
-        } else {
+            'provider_name' => 'Noest',
+            'service_key' => 'noest_desk_delivery',
+            'logo' => null,
+            'delivery_type' => 'desk_delivery',
+            'delivery_type_label' => 'Desk Delivery',
+            'company_name' => 'Noest',
+            'estimated_days' => (string) ($noest->delivery_time ?? '24-48h'),
+            'is_third_party' => 1,
+            'is_noest' => 1,
+            'station_code' => null,
+        ]);
+    }
+
+    return response()->json(
+        $defaultMethods->concat($customMethods)->values(),
+        200
+    );
+}
+
+    public function choose_for_order(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'cart_group_id' => 'required',
+        'id' => 'required',
+        'shipping_cost' => 'nullable|numeric',
+    ], [
+        'id.required' => translate('shipping_id_is_required')
+    ]);
+
+    if ($validator->errors()->count() > 0) {
+        return response()->json(['errors' => Helpers::validationErrorProcessor($validator)]);
+    }
+
+    if ($request['cart_group_id'] == 'all_cart_group') {
+        foreach (CartManager::get_cart_group_ids(request: $request) as $group_id) {
+            $request['cart_group_id'] = $group_id;
             self::insert_into_cart_shipping($request);
         }
-
-        return response()->json(translate('successfully_added'));
+    } else {
+        self::insert_into_cart_shipping($request);
     }
 
-    public static function insert_into_cart_shipping($request)
-    {
-        $shipping = CartShipping::where(['cart_group_id' => $request['cart_group_id']])->first();
-        if (isset($shipping) == false) {
-            $shipping = new CartShipping();
-        }
-        $shipping['cart_group_id'] = $request['cart_group_id'];
-        $shipping['shipping_method_id'] = $request['id'];
-        $shipping['shipping_cost'] = ShippingMethod::find($request['id'])->cost;
-        $shipping->save();
+    return response()->json(translate('successfully_added'));
+}
+
+public static function insert_into_cart_shipping($request)
+{
+    $shipping = CartShipping::where(['cart_group_id' => $request['cart_group_id']])->first();
+
+    if (!$shipping) {
+        $shipping = new CartShipping();
     }
+
+    $shippingId = (int) $request['id'];
+    $shipping['cart_group_id'] = $request['cart_group_id'];
+    $shipping['shipping_method_id'] = $shippingId;
+
+    // إذا التطبيق أرسل السعر، نعتمده
+    if (isset($request['shipping_cost']) && $request['shipping_cost'] !== null && $request['shipping_cost'] !== '') {
+        $shipping['shipping_cost'] = (double) $request['shipping_cost'];
+    } else {
+        // fallback للشحن القديم
+        $method = ShippingMethod::find($shippingId);
+        $shipping['shipping_cost'] = (double) ($method->cost ?? 0);
+    }
+
+    $shipping->save();
+}
 
     public function chosen_shipping_methods(Request $request): JsonResponse
     {

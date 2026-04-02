@@ -5,7 +5,7 @@ namespace App\Services\Web;
 use App\Utils\Helpers;
 use App\Utils\SMSModule;
 use App\Events\EmailVerificationEvent;
-
+use App\Models\EmailTemplate;
 
 class CustomerAuthService
 {
@@ -35,41 +35,56 @@ class CustomerAuthService
         ];
     }
 
-    public function sendCustomerEmailVerificationToken($user, $token): array
-    {
-        $emailServicesSmtp = getWebConfig(name: 'mail_config');
-        if ($emailServicesSmtp['status'] == 0) {
-            $emailServicesSmtp = getWebConfig(name: 'mail_config_sendgrid');
-        }
-        if ($emailServicesSmtp['status'] == 1 && $user['email']) {
-            try {
-                $data = [
-                    'userName' => $user['f_name'],
-                    'subject' => translate('registration_Verification_Code'),
-                    'title' => translate('registration_Verification_Code'),
-                    'verificationCode' => $token,
-                    'userType' => 'customer',
-                    'templateName' => 'registration-verification',
-                ];
-
-                event(new EmailVerificationEvent(email: $user['email'], data: $data));
-                return [
-                    'status' => 'success',
-                    'message' => translate('check_your_email'),
-                ];
-            } catch (\Exception $exception) {
-                return [
-                    'status' => 'error',
-                    'message' => translate('email_is_not_configured') . '. ' . translate('contact_with_the_administrator'),
-                ];
-            }
-        } else {
-            return [
-                'status' => 'error',
-                'message' => translate('email_failed'),
-            ];
-        }
+   public function sendCustomerEmailVerificationToken($user, $token): array
+{
+    $emailServicesSmtp = getWebConfig(name: 'mail_config');
+    if (isset($emailServicesSmtp['status']) && (int)$emailServicesSmtp['status'] === 0) {
+        $emailServicesSmtp = getWebConfig(name: 'mail_config_sendgrid');
     }
+
+    if (!isset($emailServicesSmtp['status']) || (int)$emailServicesSmtp['status'] !== 1 || empty($user['email'])) {
+        return [
+            'status' => 'error',
+            'message' => translate('email_failed'),
+        ];
+    }
+
+    $template = EmailTemplate::where([
+        'user_type' => 'customer',
+        'template_name' => 'registration-verification',
+    ])->first();
+
+    if (!$template || (int)$template->status !== 1) {
+        return [
+            'status' => 'error',
+            'message' => translate('email_failed'),
+        ];
+    }
+
+    try {
+        $data = [
+            'userName' => $user['f_name'],
+            'subject' => translate('registration_Verification_Code'),
+            'title' => translate('registration_Verification_Code'),
+            'verificationCode' => $token,
+            'userType' => 'customer',
+            'templateName' => 'registration-verification',
+            'throw_on_error' => true,
+        ];
+
+        event(new EmailVerificationEvent(email: $user['email'], data: $data));
+
+        return [
+            'status' => 'success',
+            'message' => translate('check_your_email'),
+        ];
+    } catch (\Exception $exception) {
+        return [
+            'status' => 'error',
+            'message' => translate('email_is_not_configured') . '. ' . translate('contact_with_the_administrator'),
+        ];
+    }
+}
 
     public function getCustomerLoginPreviousRoute($previousUrl): string
     {

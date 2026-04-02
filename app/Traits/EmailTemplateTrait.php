@@ -17,8 +17,8 @@ trait EmailTemplateTrait
 
     protected function textVariableFormat(
         $value, $userName = null, $adminName = null, $vendorName = null, $shopName = null, $shopId = null,
-        $deliveryManName = null, $orderId = null, $emailId = null)
-    {
+        $deliveryManName = null, $orderId = null, $emailId = null
+    ) {
         $data = $value;
         if ($data) {
             $data = $userName ? str_replace("{userName}", $userName, $data) : $data;
@@ -35,7 +35,11 @@ trait EmailTemplateTrait
 
     protected function sendingMail($sendMailTo, $userType, $templateName, $data = null): void
     {
-        $template = EmailTemplate::with('translationCurrentLanguage')->where(['user_type' => $userType, 'template_name' => $templateName])->first();
+        $template = EmailTemplate::with('translationCurrentLanguage')->where([
+            'user_type' => $userType,
+            'template_name' => $templateName
+        ])->first();
+
         if ($template) {
             if (count($template['translationCurrentLanguage'])) {
                 foreach ($template?->translationCurrentLanguage ?? [] as $translate) {
@@ -46,7 +50,9 @@ trait EmailTemplateTrait
                     $template['button_name'] = $translate->key == 'button_name' ? $translate->value : $template['button_name'];
                 }
             }
+
             $socialMedia = SocialMedia::where(['status' => 1])->get();
+
             $template['body'] = $this->textVariableFormat(
                 value: $template['body'],
                 userName: $data['userName'] ?? null,
@@ -58,6 +64,7 @@ trait EmailTemplateTrait
                 orderId: $data['orderId'] ?? null,
                 emailId: $data['emailId'] ?? null
             );
+
             $template['title'] = $this->textVariableFormat(
                 value: $template['title'],
                 userName: $data['userName'] ?? null,
@@ -67,13 +74,26 @@ trait EmailTemplateTrait
                 deliveryManName: $data['deliveryManName'] ?? null,
                 orderId: $data['orderId'] ?? null
             );
+
             $data['send-mail'] = true;
+
             if ($template['status'] == 1) {
                 try {
                     Mail::to($sendMailTo)->send(new SendMail($data, $template, $socialMedia));
                 } catch (\Exception $exception) {
+                    \Log::error('Email sending failed', [
+                        'send_to' => $sendMailTo,
+                        'user_type' => $userType,
+                        'template_name' => $templateName,
+                        'message' => $exception->getMessage(),
+                    ]);
+
+                    if (($data['throw_on_error'] ?? false) === true) {
+                        throw $exception;
+                    }
                 }
             }
+
             if (isset($data['attachmentPath'])) {
                 unlink($data['attachmentPath']);
             }
@@ -84,16 +104,24 @@ trait EmailTemplateTrait
     {
         $emailTemplates = EmailTemplate::where(['user_type' => $userType])->get();
         $emailTemplateArray = (new EmailTemplateService)->getEmailTemplateData(userType: $userType);
+
         foreach ($emailTemplateArray as $value) {
             $checkKey = $emailTemplates->where('template_name', $value)->first();
             if ($checkKey === null) {
                 $hideField = (new EmailTemplateService)->getHiddenField(userType: $userType, templateName: $value);
                 $title = (new EmailTemplateService)->getTitleData(userType: $userType, templateName: $value);
                 $body = (new EmailTemplateService)->getBodyData(userType: $userType, templateName: $value);
-                $addData = (new EmailTemplateService)->getAddData(userType: $userType, templateName: $value, hideField: $hideField, title: $title, body: $body);
+                $addData = (new EmailTemplateService)->getAddData(
+                    userType: $userType,
+                    templateName: $value,
+                    hideField: $hideField,
+                    title: $title,
+                    body: $body
+                );
                 EmailTemplate::create($addData);
             }
         }
+
         foreach ($emailTemplates as $value) {
             if (!in_array($value['template_name'], $emailTemplateArray)) {
                 EmailTemplate::find($value['id'])->delete();

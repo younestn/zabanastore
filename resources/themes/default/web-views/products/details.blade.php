@@ -496,14 +496,10 @@
 
                                         @if($product->video_url != null && (str_contains($product->video_url, "youtube.com/embed/")))
                                             <div class="col-12 mb-4">
-                                            <div class="product-video-frame">
-        <iframe
-            src="{{ $product->video_url}}"
-            loading="lazy"
-            allowfullscreen>
-        </iframe>
-    </div>
-</div>
+                                                <iframe width="420" height="315"
+                                                        src="{{ $product->video_url}}">
+                                                </iframe>
+                                            </div>
                                         @endif
                                         @if ($product['details'])
                                             <div

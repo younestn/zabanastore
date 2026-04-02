@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Class CartShipping
  *
- * @property int $id Primary
+ * @property int $id
  * @property string $cart_group_id
  * @property int $shipping_method_id
  * @property float $shipping_cost
+ * @property array|null $extra_data
  * @property Carbon $created_at
  * @property Carbon $updated_at
  *
@@ -24,6 +25,7 @@ class CartShipping extends Model
         'id' => 'integer',
         'shipping_method_id' => 'integer',
         'shipping_cost' => 'float',
+        'extra_data' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -32,10 +34,11 @@ class CartShipping extends Model
         'cart_group_id',
         'shipping_method_id',
         'shipping_cost',
+        'extra_data',
     ];
 
     public function cart(): BelongsTo
     {
-        return $this->belongsTo(Cart::class,'cart_group_id','cart_group_id');
+        return $this->belongsTo(Cart::class, 'cart_group_id', 'cart_group_id');
     }
 }

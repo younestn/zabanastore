@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use GuzzleHttp\Client;
 use Illuminate\Support\Carbon;
+use App\Models\EmailTemplate;
 
 class CustomerAPIAuthController extends Controller
 {
@@ -138,24 +139,28 @@ class CustomerAPIAuthController extends Controller
             ];
 
             if (auth()->attempt($data)) {
-                $temporaryToken = Str::random(40);
-                $phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
-                $emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
-                $emailVerification = !$phoneVerification ? $emailVerification : 0;
+               $temporaryToken = Str::random(40);
+$phoneVerification = getLoginConfig(key: 'phone_verification') ?? 0;
+$emailVerification = getLoginConfig(key: 'email_verification') ?? 0;
 
-                if (
-                    ($phoneVerification && !$user['is_phone_verified']) ||
-                    ($emailVerification && !$user['is_email_verified'])
-                ) {
-                    return response()->json([
-                        'temporary_token' => $temporaryToken,
-                        'status' => false,
-                        'phone' => $user['phone'],
-                        'email' => $user['email'],
-                        'is_phone_verified' => $user['is_phone_verified'],
-                        'is_email_verified' => $user['is_email_verified'],
-                    ], 200);
-                }
+$requiresPhoneVerification = $phoneVerification && !$user['is_phone_verified'];
+$requiresEmailVerification = $emailVerification && !$user['is_email_verified'];
+
+$shouldBlockLoginForVerification =
+    ($phoneVerification && !$emailVerification && $requiresPhoneVerification) ||
+    (!$phoneVerification && $emailVerification && $requiresEmailVerification) ||
+    ($phoneVerification && $emailVerification && $requiresPhoneVerification && $requiresEmailVerification);
+
+if ($shouldBlockLoginForVerification) {
+    return response()->json([
+        'temporary_token' => $temporaryToken,
+        'status' => false,
+        'phone' => $user['phone'],
+        'email' => $user['email'],
+        'is_phone_verified' => $user['is_phone_verified'],
+        'is_email_verified' => $user['is_email_verified'],
+    ], 200);
+}
 
                 if ($user['is_active'] != 1) {
                     return response()->json(['errors' => [
@@ -302,29 +307,56 @@ class CustomerAPIAuthController extends Controller
             ]);
 
             try {
-                $emailServices = getWebConfig(name: 'mail_config');
-                if ($emailServices['status'] == 0) {
-                    $emailServices = getWebConfig(name: 'mail_config_sendgrid');
-                }
+    $emailServices = getWebConfig(name: 'mail_config');
+    if (isset($emailServices['status']) && (int)$emailServices['status'] === 0) {
+        $emailServices = getWebConfig(name: 'mail_config_sendgrid');
+    }
 
-                if (isset($emailServices['status']) && $emailServices['status'] == 1) {
-                    $data = [
-                        'userName' => $request['email'],
-                        'subject' => translate('registration_Verification_Code'),
-                        'title' => translate('registration_Verification_Code'),
-                        'verificationCode' => $token,
-                        'userType' => 'customer',
-                        'templateName' => 'registration-verification',
-                    ];
-                    event(new EmailVerificationEvent(email: $request['email'], data: $data));
-                }
-            } catch (\Exception $exception) {
-                return response()->json([
-                    'errors' => [
-                        ['code' => 'otp', 'message' => translate('Token_sent_failed')]
-                    ]
-                ], 403);
-            }
+    if (!isset($emailServices['status']) || (int)$emailServices['status'] !== 1) {
+        $this->phoneOrEmailVerificationRepo->delete(params: ['phone_or_email' => $request['email']]);
+
+        return response()->json([
+            'errors' => [
+                ['code' => 'otp', 'message' => translate('Email_configuration_issue.')]
+            ]
+        ], 403);
+    }
+
+    $template = EmailTemplate::where([
+        'user_type' => 'customer',
+        'template_name' => 'registration-verification',
+    ])->first();
+
+    if (!$template || (int)$template->status !== 1) {
+        $this->phoneOrEmailVerificationRepo->delete(params: ['phone_or_email' => $request['email']]);
+
+        return response()->json([
+            'errors' => [
+                ['code' => 'otp', 'message' => translate('Token_sent_failed')]
+            ]
+        ], 403);
+    }
+
+    $data = [
+        'userName' => $request['email'],
+        'subject' => translate('registration_Verification_Code'),
+        'title' => translate('registration_Verification_Code'),
+        'verificationCode' => $token,
+        'userType' => 'customer',
+        'templateName' => 'registration-verification',
+        'throw_on_error' => true,
+    ];
+
+    event(new EmailVerificationEvent(email: $request['email'], data: $data));
+} catch (\Exception $exception) {
+    $this->phoneOrEmailVerificationRepo->delete(params: ['phone_or_email' => $request['email']]);
+
+    return response()->json([
+        'errors' => [
+            ['code' => 'otp', 'message' => translate('Token_sent_failed')]
+        ]
+    ], 403);
+}
 
             return response()->json([
                 'message' => translate('Email is ready to register'),

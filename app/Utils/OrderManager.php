@@ -748,9 +748,17 @@ class OrderManager
                 $shippingType = ShippingType::where(['seller_id' => $firstCartItem['seller_id']])->first();
             }
 
-            $shippingMethod = CartShipping::where(['cart_group_id' => $groupId])->first();
-            $shippingMethodId = $shippingMethod?->shipping_method_id ?? 0;
-            $cartGroupOrderAmount = $cartGroupGrandTotal - ($couponInfo['discount'] ?? 0) - $freeShippingDiscount;
+         $shippingMethod = CartShipping::where(['cart_group_id' => $groupId])->first();
+$shippingMethodId = $shippingMethod?->shipping_method_id ?? 0;
+
+$shippingExtraData = [];
+if ($shippingMethod && !empty($shippingMethod->extra_data)) {
+    $shippingExtraData = is_array($shippingMethod->extra_data)
+        ? $shippingMethod->extra_data
+        : (json_decode($shippingMethod->extra_data, true) ?? []);
+}
+
+$cartGroupOrderAmount = $cartGroupGrandTotal - ($couponInfo['discount'] ?? 0) - $freeShippingDiscount;
 
             $referAndEarnDiscount = OrderManager::redeemReferralDiscount(
                 referralCustomer: $checkReferralDiscount,
@@ -773,6 +781,7 @@ class OrderManager
                 'shipping_type' => isset($shippingType?->shipping_type) ? $shippingType->shipping_type : 'order_wise',
                 'is_shipping_free' => $isShippingFree,
                 'shipping_method_id' => $shippingMethodId,
+                'shipping_extra_data' => $shippingExtraData,
                 'free_delivery_discount' => $freeShippingDiscount ?? 0,
                 'extra_discount_type' => $extraDiscountType,
                 'free_delivery_bearer' => $firstCartItem['seller_is'] == 'seller' ? $freeDeliveryBearer : 'admin',
@@ -790,34 +799,12 @@ class OrderManager
         $shippingAddress = ShippingAddress::find($cartData['shipping_address_id']);
 $billingAddress = getWebConfig('billing_input_by_customer') ? ShippingAddress::find($cartData['billing_address_id']) : null;
 
-$selectedWilaya = session('selected_wilaya_id') ? Wilaya::find(session('selected_wilaya_id')) : null;
-$selectedDeliveryMethod = session('selected_delivery_method');
-$selectedBaladiyaName = trim((string)(session('selected_baladiya_name') ?? ''));
-$selectedStationCode = trim((string)(session('selected_station_code') ?? ''));
+$noestShippingMeta = self::getNoestShippingMetaForOrder($cartData);
 
-Log::info('OrderManager manual commune debug', [
-    'order_id' => $orderId,
-    'selected_wilaya_id' => session('selected_wilaya_id'),
-    'selected_baladiya_name' => $selectedBaladiyaName,
-    'selected_delivery_method' => $selectedDeliveryMethod,
-    'selected_station_code' => $selectedStationCode,
-]);
-
-$shippingAddressData = $shippingAddress ? json_encode(array_merge($shippingAddress->toArray(), [
-    'noest_wilaya_id' => $selectedWilaya?->id,
-    'noest_wilaya_code' => $selectedWilaya?->code,
-    'noest_wilaya_name' => $selectedWilaya?->name,
-    'noest_baladiya_id' => null,
-    'noest_baladiya_name' => $selectedBaladiyaName,
-    'noest_delivery_method' => $selectedDeliveryMethod,
-    'noest_station_code' => $selectedStationCode,
-]), JSON_UNESCAPED_UNICODE) : null;
-
-Log::info('OrderManager shipping_address_data debug', [
-    'order_id' => $orderId,
-    'shipping_address_data' => $shippingAddressData,
-]);
-
+$shippingAddressData = $shippingAddress
+    ? json_encode(array_merge($shippingAddress->toArray(), $noestShippingMeta), JSON_UNESCAPED_UNICODE)
+    : null;
+    
 $billingAddressData = $billingAddress
     ? json_encode($billingAddress->toArray(), JSON_UNESCAPED_UNICODE)
     : null;
@@ -864,6 +851,70 @@ $billingAddressData = $billingAddress
             'order_note' => $orderData['order_note'] ?? session('order_note'),
         ];
     }
+    
+    private static function getNoestShippingMetaForOrder(array $cartData): array
+{
+    $shippingExtraData = $cartData['shipping_extra_data'] ?? [];
+
+    if (is_string($shippingExtraData)) {
+        $shippingExtraData = json_decode($shippingExtraData, true) ?? [];
+    }
+
+    $shippingExtraData = is_array($shippingExtraData) ? $shippingExtraData : [];
+
+    $hasCartStoredNoestData = (int)($shippingExtraData['is_noest'] ?? 0) === 1;
+
+    $hasLegacySessionNoestData = !$hasCartStoredNoestData
+        && (int)($cartData['shipping_method_id'] ?? 0) === 0
+        && session()->has('selected_wilaya_id')
+        && session()->has('selected_delivery_method');
+
+    if (!$hasCartStoredNoestData && !$hasLegacySessionNoestData) {
+        return [
+            'noest_wilaya_id' => null,
+            'noest_wilaya_code' => null,
+            'noest_wilaya_name' => null,
+            'noest_baladiya_id' => null,
+            'noest_baladiya_name' => null,
+            'noest_delivery_method' => null,
+            'noest_station_code' => null,
+            'noest_station_name' => null,
+        ];
+    }
+
+    $selectedWilayaId = $hasCartStoredNoestData
+        ? ($shippingExtraData['wilaya_id'] ?? null)
+        : session('selected_wilaya_id');
+
+    $selectedWilaya = $selectedWilayaId ? Wilaya::find($selectedWilayaId) : null;
+
+    $selectedBaladiyaName = $hasCartStoredNoestData
+        ? trim((string)($shippingExtraData['baladiya_name'] ?? ''))
+        : trim((string)(session('selected_baladiya_name') ?? ''));
+
+    $selectedStationCode = $hasCartStoredNoestData
+        ? trim((string)($shippingExtraData['station_code'] ?? ''))
+        : trim((string)(session('selected_station_code') ?? ''));
+
+    $selectedStationName = $hasCartStoredNoestData
+        ? trim((string)($shippingExtraData['station_name'] ?? ''))
+        : null;
+
+    $selectedDeliveryMethod = $hasCartStoredNoestData
+        ? (string)($shippingExtraData['delivery_type'] ?? '')
+        : (string)(session('selected_delivery_method') ?? '');
+
+    return [
+        'noest_wilaya_id' => $selectedWilaya?->id ?? (is_numeric($selectedWilayaId) ? (int)$selectedWilayaId : null),
+        'noest_wilaya_code' => $shippingExtraData['wilaya_code'] ?? $selectedWilaya?->code,
+        'noest_wilaya_name' => $shippingExtraData['wilaya_name'] ?? $selectedWilaya?->name,
+        'noest_baladiya_id' => null,
+        'noest_baladiya_name' => $selectedBaladiyaName !== '' ? $selectedBaladiyaName : null,
+        'noest_delivery_method' => $selectedDeliveryMethod !== '' ? $selectedDeliveryMethod : null,
+        'noest_station_code' => $selectedStationCode !== '' ? $selectedStationCode : null,
+        'noest_station_name' => $selectedStationName !== '' ? $selectedStationName : null,
+    ];
+}
 
     public static function addOrderDetailsData(int $orderId, object|array|null $vendorCart = []): void
     {

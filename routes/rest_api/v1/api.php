@@ -94,15 +94,20 @@ Route::group(['namespace' => 'RestAPI\v1', 'prefix' => 'v1', 'middleware' => ['a
         });
     });
 
-    Route::group(['prefix' => 'shipping-method', 'middleware' => 'apiGuestCheck'], function () {
-        Route::controller(ShippingMethodController::class)->group(function () {
-            Route::get('detail/{id}', 'get_shipping_method_info');
-            Route::get('by-seller/{id}/{seller_is}', 'shipping_methods_by_seller');
-            Route::post('choose-for-order', 'choose_for_order');
-            Route::get('chosen', 'chosen_shipping_methods');
-            Route::get('check-shipping-type', 'check_shipping_type');
-        });
+  Route::group(['prefix' => 'shipping-method', 'middleware' => 'apiGuestCheck'], function () {
+    Route::controller(ShippingMethodController::class)->group(function () {
+        Route::get('detail/{id}', 'get_shipping_method_info');
+        Route::get('by-seller/{id}/{seller_is}', 'shipping_methods_by_seller');
+        Route::post('choose-for-order', 'choose_for_order');
+        Route::get('chosen', 'chosen_shipping_methods');
+        Route::get('check-shipping-type', 'check_shipping_type');
+
+        // NOEST - Mobile App
+        Route::get('noest/wilayas', 'noest_wilayas');
+        Route::get('noest/stations', 'noest_stations');
+        Route::post('noest/price', 'noest_price');
     });
+});
 
     Route::group(['prefix' => 'cart', 'middleware' => 'apiGuestCheck'], function () {
         Route::controller(CartController::class)->group(function () {

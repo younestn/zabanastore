@@ -9762,4 +9762,6 @@ return [
 	"add_refund_amount_to_wallet_status_indicates_whether_the_system_is_currently_set_to_automatically_credit_refunded_amounts_to_the_customers_wallet." => "Add refund amount to wallet status indicates whether the system is currently set to automatically credit refunded amounts to the customers wallet.",
 	"Cart_update_successfully" => "Cart update successfully",
 	"Unauthorized" => "Unauthorized",
+	"Coupon_not_applicable" => "Coupon not applicable",
+	"Unable_to_send_the_verification_code." => "Unable to send the verification code.",
 ];

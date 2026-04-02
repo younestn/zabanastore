@@ -616,7 +616,7 @@
   'cancel_Order' => 'إلغاء الطلب',
   'country' => 'الدولة',
   'city' => 'المدينة',
-  'zip_code' => 'الولاية',
+  'zip_code' => 'الرمز البريدي',
   'list_of_hold_orders' => 'قائمة الطلبات المعلقة',
   'search_by_customer_name' => 'البحث باسم العميل',
   'coupon_discount' => 'خصم القسيمة',

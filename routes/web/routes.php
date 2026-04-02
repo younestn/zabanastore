@@ -36,7 +36,7 @@ use App\Http\Controllers\Payment_Methods\StripePaymentController;
 use App\Http\Controllers\Payment_Methods\PaymobController;
 use App\Http\Controllers\Payment_Methods\FlutterwaveV3Controller;
 use App\Http\Controllers\Payment_Methods\PaytmController;
-use App\Http\Controllers\RewardPointController;
+use App\Http\Controllers\Customer\RewardPointController;
 use App\Http\Controllers\Payment_Methods\PaypalPaymentController;
 use App\Http\Controllers\Payment_Methods\PaytabsController;
 use App\Http\Controllers\Payment_Methods\LiqPayController;

@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html lang="{{ $isArabic ? 'ar' : str_replace('_', '-', app()->getLocale()) }}"
       dir="{{ $isArabic ? 'rtl' : (session()->get('direction') ?? 'ltr') }}">
-
+    
 <head>
     <meta charset="utf-8">
     <title>@yield('title')</title>
@@ -30,14 +30,14 @@
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/backend/webfonts/uicons-solid-rounded.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/back-end/css/toastr.css') }}"/>
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/master.css') }}"/>
-    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/roboto-font.css') }}">
-
-@if($isArabic)
+    <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/roboto-font.css')  }}">
+    @if($isArabic)
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
 @endif
+    
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/css/lightbox.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/back-end/vendor/icon-set/style.css') }}">
     <link rel="stylesheet" href="{{ theme_asset(path: 'public/assets/front-end/css/owl.carousel.min.css') }}">

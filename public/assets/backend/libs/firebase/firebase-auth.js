@@ -1,6 +1,9 @@
 "use strict";
 
 const recaptchaVerifiers = {};
+if (!document.querySelector('.generate-firebase-auth-recaptcha')) {
+    console.warn('No Firebase reCAPTCHA elements found on this page.');
+}
 
 document.querySelectorAll('.generate-firebase-auth-recaptcha').forEach(function (element) {
     const containerId = element.id;
@@ -26,13 +29,18 @@ document.querySelectorAll('.generate-firebase-auth-recaptcha').forEach(function 
     wrapper.innerHTML = initHtmlViewRender();
     element.parentNode.insertBefore(wrapper, element.nextSibling);
 
-    const submitButton = formElement.querySelector('[type="submit"]');
+    const submitButton = formElement.querySelector('button[type="submit"], input[type="submit"]');
 
-    ['mouseover', 'mousedown', 'click'].forEach(evt => {
+if (submitButton) {
+    ['mouseover', 'mousedown', 'click'].forEach((evt) => {
         submitButton.addEventListener(evt, () => {
             initializeFirebaseGoogleRecaptcha(containerId, action);
         });
     });
+} else {
+    console.warn('Submit button not found for form:', formElement);
+}
+
 
     formElement.addEventListener('input', (e) => {
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
@@ -121,15 +129,29 @@ function initializeFirebaseGoogleRecaptcha(containerId, action) {
 }
 
 function storeRecaptchaVerifierResponse(containerId, token) {
-    const form = document.getElementById(containerId).closest('form');
+    const container = document.getElementById(containerId);
+
+    if (!container) {
+        console.warn(`Container ${containerId} not found while storing token`);
+        return;
+    }
+
+    const form = container.closest('form');
+    if (!form) {
+        console.warn(`Form not found for container ${containerId}`);
+        return;
+    }
+
     let input = form.querySelector('input[name="firebase-auth-recaptcha-response"]');
 
-    const icon = document.querySelector(`#${containerId}`).closest('form').querySelector('.firebase-auth-verify-icon');
-    const reloadIcon = document.querySelector(`#${containerId}`).closest('form').querySelector('.firebase-auth-reload-icon');
+    const icon = form.querySelector('.firebase-auth-verify-icon');
+    const reloadIcon = form.querySelector('.firebase-auth-reload-icon');
 
     if (icon) {
         icon.style.opacity = "1";
-        reloadIcon.style.opacity = "0";
+        if (reloadIcon) {
+            reloadIcon.style.opacity = "0";
+        }
     } else {
         console.warn('Icon not found inside form');
     }
@@ -144,6 +166,7 @@ function storeRecaptchaVerifierResponse(containerId, token) {
         form.appendChild(input);
     }
 }
+
 
 function destroyRecaptcha(containerId) {
     if (recaptchaVerifiers[containerId]) {

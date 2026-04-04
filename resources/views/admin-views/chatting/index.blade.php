@@ -22,7 +22,15 @@
                         <form class="search-form mb-4 px-20" id="chat-search-form">
                             <div class="form-group">
                                 <div class="input-group">
-                                    <input id="myInput"  type="search" class="form-control" placeholder="{{ request('type') == 'customer' ? translate('search_customers') : translate('search_delivery_men')}}...">
+                                    <input id="myInput" type="search" class="form-control"
+       placeholder="{{
+            request('type') == 'customer'
+                ? translate('search_customers')
+                : (request('type') == 'delivery-man'
+                    ? translate('search_delivery_men')
+                    : translate('search') . ' ' . translate('vendor'))
+       }}...">
+       {{ translate('No') . ' ' . translate('vendor') . ' ' . translate('Found') }}
                                     <div class="input-group-append search-submit">
                                         <button type="submit">
                                             <i class="fi fi-rr-search"></i>
@@ -46,128 +54,191 @@
                                     {{translate('delivery_Man')}}
                                 </a>
                             </li>
+                            <li class="nav-item" role="presentation">
+    <a class="nav-link {{ request('type') == 'vendor' ? 'active' : '' }}"
+       href="{{ route('admin.messages.index', ['type' => 'vendor']) }}">
+        {{ translate('vendor') }}
+    </a>
+</li>
                         </ul>
 
                         <div class="tab-content max-h-100vh-300px overflow-y-auto">
                             <div class="tab-pane fade show active" id="customers" role="tabpanel" aria-labelledby="pills-home-tab">
                                 <div class="inbox_chat d-flex flex-column">
                                     @if(isset($allChattingUsers) && count($allChattingUsers) > 0)
-                                        @foreach($allChattingUsers as $key => $chatting)
-                                            @if($chatting->user_id && $chatting->customer)
-                                                <div class="list_filter">
-                                                    <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : ''}} get-ajax-message-view {{ $chatting->user_id == $lastChatUser->id ? 'active' : '' }}"
-                                                        data-user-id="{{ $chatting->user_id }}">
-                                                        <div class="chat_people media gap-10 w-100" id="chat_people">
-                                                            <div class="chat_img avatar avatar-sm avatar-circle">
-                                                                <img src="{{ getStorageImages(path:$chatting->customer->image_full_url,type: 'backend-profile') }}"
-                                                                    id="{{$chatting->user_id}}" class="avatar-img avatar-circle" alt="">
-                                                                <span class="avatar-status avatar-sm-status avatar-status-success"></span>
-                                                            </div>
-                                                            <div class="chat_ib media-body">
-                                                                <h5 class="mb-1 seller {{ $key != 0 ?'font-weight-normal' :'' }}"
-                                                                    id="{{ $chatting->user_id }}"
-                                                                    data-name="{{ $chatting->customer->f_name.' '.$chatting->customer->l_name }}"
-                                                                    data-phone="{{ $chatting->customer->phone }}">
-                                                                    {{ $chatting->customer->f_name .' '. $chatting->customer->l_name }}
+    @foreach($allChattingUsers as $key => $chatting)
 
-                                                                    <span class="lead fs-12 float-end">{{ $chatting->created_at->diffForHumans() }}</span>
-                                                                </h5>
-                                                                <span class="mt-2 font-weight-normal text-muted d-block"
-                                                                    id="{{ $chatting->user_id }}" data-name="{{ $chatting->customer->f_name .' '. $chatting->customer->l_name}}"
-                                                                    data-phone="{{ $chatting->customer->phone }}">{{ $chatting->customer->phone }}
-                                                                </span>
-                                                                <div class="d-flex gap-2 justify-content-between align-items-center">
-                                                                    <p class="fs-12 line--limit-1 mb-0">{{ Str::limit($chatting?->message) ?? 'Shared files' }}</p>
-                                                                    @if(array_key_exists($chatting->user_id, $countUnreadMessages))
-                                                                        <span  id="count-unread-messages-{{ $chatting->user_id }}"
-                                                                            class="bg-primary text-white fs-12 lh-1 rounded-circle aspect-1 min-w-20px p-1 d-flex justify-content-center align-items-center flex-shrink-0">
-                                                                            {{ $countUnreadMessages[$chatting->user_id] }}
-                                                                        </span>
-                                                                    @endif
+        @if($chatting->user_id && $chatting->customer)
+            <div class="list_filter">
+                <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : '' }} get-ajax-message-view {{ $chatting->user_id == $lastChatUser->id ? 'active' : '' }}"
+                     data-user-id="{{ $chatting->user_id }}">
+                    <div class="chat_people media gap-10 w-100" id="chat_people">
+                        <div class="chat_img avatar avatar-sm avatar-circle">
+                            <img src="{{ getStorageImages(path:$chatting->customer->image_full_url,type: 'backend-profile') }}"
+                                 id="{{ $chatting->user_id }}"
+                                 class="avatar-img avatar-circle" alt="">
+                            <span class="avatar-status avatar-sm-status avatar-status-success"></span>
+                        </div>
+                        <div class="chat_ib media-body">
+                            <h5 class="mb-1 seller {{ $key != 0 ? 'font-weight-normal' : '' }}"
+                                id="{{ $chatting->user_id }}"
+                                data-name="{{ $chatting->customer->f_name.' '.$chatting->customer->l_name }}"
+                                data-phone="{{ $chatting->customer->phone }}">
+                                {{ $chatting->customer->f_name.' '.$chatting->customer->l_name }}
+                                <span class="lead fs-12 float-end">{{ $chatting->created_at->diffForHumans() }}</span>
+                            </h5>
+                            <span class="mt-2 font-weight-normal text-muted d-block"
+                                  id="{{ $chatting->user_id }}"
+                                  data-name="{{ $chatting->customer->f_name.' '.$chatting->customer->l_name }}"
+                                  data-phone="{{ $chatting->customer->phone }}">
+                                {{ $chatting->customer->phone }}
+                            </span>
+                            <div class="d-flex gap-2 justify-content-between align-items-center">
+                                <p class="fs-12 line--limit-1 mb-0">{{ Str::limit($chatting?->message) ?? 'Shared files' }}</p>
+                                @if(array_key_exists($chatting->user_id, $countUnreadMessages))
+                                    <span id="count-unread-messages-{{ $chatting->user_id }}"
+                                          class="bg-primary text-white fs-12 lh-1 rounded-circle aspect-1 min-w-20px p-1 d-flex justify-content-center align-items-center flex-shrink-0">
+                                        {{ $countUnreadMessages[$chatting->user_id] }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @if(!$chatting->seen_by_admin && !($key == 0))
+                        <div class="message-status bg-danger notify-alert-{{ $chatting->user_id }}"></div>
+                    @endif
+                </div>
+            </div>
 
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        @if(!$chatting->seen_by_admin && !($key == 0))
-                                                            <div class="message-status bg-danger notify-alert-{{ $chatting->user_id }}"></div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @elseif($chatting->delivery_man_id && $chatting->deliveryMan)
-                                                <div class="list_filter">
-                                                    <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : ''}} get-ajax-message-view {{ $chatting->delivery_man_id == $lastChatUser->id ? 'active' : '' }}"
-                                                        data-user-id="{{ $chatting->delivery_man_id }}">
-                                                        <div class="chat_people media gap-10 w-100 d-flex align-items-center" id="chat_people">
-                                                            <div class="chat_img position-relative avatar avatar-sm avatar-circle">
-                                                                <img width="50" src="{{ getStorageImages(path:$chatting->deliveryMan->image_full_url,type: 'backend-profile') }}"
-                                                                    id="{{$chatting->user_id}}" class="rounded-circle aspect-1" alt="">
-                                                                <span class="position-absolute bottom-0 start-100 translate-middle p-1 bg-success border border-white border-2 rounded-circle">
-                                                                    <span class="visually-hidden">New alerts</span>
-                                                                </span>
-                                                            </div>
-                                                            <div class="chat_ib media-body">
-                                                                <h4 class="mb-1 seller d-flex gap-1 justify-content-between {{ $key != 0 ?'font-weight-normal' :''}}"
-                                                                    id="{{ $chatting->delivery_man_id }}"
-                                                                    data-name="{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}"
-                                                                    data-phone="{{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}">
-                                                                    <span class="line-1" title="{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}">{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}</span>
+        @elseif($chatting->delivery_man_id && $chatting->deliveryMan)
+            <div class="list_filter">
+                <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : '' }} get-ajax-message-view {{ $chatting->delivery_man_id == $lastChatUser->id ? 'active' : '' }}"
+                     data-user-id="{{ $chatting->delivery_man_id }}">
+                    <div class="chat_people media gap-10 w-100 d-flex align-items-center" id="chat_people">
+                        <div class="chat_img position-relative avatar avatar-sm avatar-circle">
+                            <img width="50"
+                                 src="{{ getStorageImages(path:$chatting->deliveryMan->image_full_url,type: 'backend-profile') }}"
+                                 id="{{ $chatting->delivery_man_id }}"
+                                 class="rounded-circle aspect-1" alt="">
+                            <span class="position-absolute bottom-0 start-100 translate-middle p-1 bg-success border border-white border-2 rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </div>
+                        <div class="chat_ib media-body">
+                            <h4 class="mb-1 seller d-flex gap-1 justify-content-between {{ $key != 0 ? 'font-weight-normal' : '' }}"
+                                id="{{ $chatting->delivery_man_id }}"
+                                data-name="{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}"
+                                data-phone="{{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}">
+                                <span class="line-1" title="{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}">
+                                    {{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}
+                                </span>
+                                <span class="lead fs-12 float-end text-nowrap">{{ $chatting->created_at->diffForHumans() }}</span>
+                            </h4>
+                            <span class="fs-12 text-muted d-block"
+                                  id="{{ $chatting->delivery_man_id }}"
+                                  data-name="{{ $chatting->deliveryMan->f_name.' '.$chatting->deliveryMan->l_name }}"
+                                  data-phone="{{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}">
+                                {{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}
+                            </span>
+                            <div class="d-flex gap-2 justify-content-between align-items-center">
+                                <p class="fs-12 line--limit-1 mb-0">{{ Str::limit($chatting?->message) ?? 'Shared files' }}</p>
+                                @if(array_key_exists($chatting->delivery_man_id, $countUnreadMessages))
+                                    <span id="count-unread-messages-{{ $chatting->delivery_man_id }}"
+                                          class="bg-primary text-white fs-12 lh-1 rounded-circle aspect-1 min-w-20px p-1 d-flex justify-content-center align-items-center flex-shrink-0">
+                                        {{ $countUnreadMessages[$chatting->delivery_man_id] }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @if(!$chatting->seen_by_admin && !($key == 0))
+                        <div class="message-status bg-danger notify-alert-{{ $chatting->delivery_man_id }}"></div>
+                    @endif
+                </div>
+            </div>
 
-                                                                    <span class="lead fs-12 float-end text-nowrap">{{ $chatting->created_at->diffForHumans() }}</span>
-                                                                </h4>
-                                                                <span class="fs-12 text-muted d-block"
-                                                                    id="{{ $chatting->delivery_man_id }}"
-                                                                    data-name="{{ $chatting->deliveryMan->f_name .' '. $chatting->deliveryMan->l_name}}"
-                                                                    data-phone="{{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}">{{ $chatting->deliveryMan->country_code.$chatting->deliveryMan->phone }}
-                                                                </span>
-                                                                <div class="d-flex gap-2 justify-content-between align-items-center">
-                                                                    <p class="fs-12 line--limit-1 mb-0">{{ Str::limit($chatting?->message) ?? 'Shared files' }}</p>
-                                                                    @if(array_key_exists($chatting->delivery_man_id, $countUnreadMessages))
-                                                                        <span id="count-unread-messages-{{ $chatting->delivery_man_id }}"
-                                                                            class="bg-primary text-white fs-12 lh-1 rounded-circle aspect-1 min-w-20px p-1 d-flex justify-content-center align-items-center flex-shrink-0">
-                                                                            {{ $countUnreadMessages[$chatting->delivery_man_id] }}
-                                                                        </span>
-                                                                    @endif
+        @elseif($chatting->seller_id && $chatting->seller)
+            <div class="list_filter">
+                <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : '' }} get-ajax-message-view {{ $chatting->seller_id == $lastChatUser->id ? 'active' : '' }}"
+                     data-user-id="{{ $chatting->seller_id }}">
+                    <div class="chat_people media gap-10 w-100 d-flex align-items-center" id="chat_people">
+                        <div class="chat_img position-relative avatar avatar-sm avatar-circle">
+                            <img width="50"
+                                 src="{{ !empty($chatting->seller?->image_full_url)
+        ? getStorageImages(path: $chatting->seller->image_full_url, type: 'backend-profile')
+        : getStorageImages(path: getWebConfig(name: 'company_fav_icon'), type: 'backend-logo') }}"
+                                 id="{{ $chatting->seller_id }}"
+                                 class="rounded-circle aspect-1" alt="">
+                            <span class="position-absolute bottom-0 start-100 translate-middle p-1 bg-success border border-white border-2 rounded-circle">
+                                <span class="visually-hidden">New alerts</span>
+                            </span>
+                        </div>
+                        <div class="chat_ib media-body">
+                            <h4 class="mb-1 seller d-flex gap-1 justify-content-between {{ $key != 0 ? 'font-weight-normal' : '' }}"
+                                id="{{ $chatting->seller_id }}"
+                                data-name="{{ $chatting->seller->f_name.' '.$chatting->seller->l_name }}"
+                                data-phone="{{ ($chatting->seller->country_code ?? '').($chatting->seller->phone ?? '') }}">
+                                <span class="line-1" title="{{ $chatting->seller->f_name.' '.$chatting->seller->l_name }}">
+                                    {{ $chatting->seller->f_name.' '.$chatting->seller->l_name }}
+                                </span>
+                                <span class="lead fs-12 float-end text-nowrap">{{ $chatting->created_at->diffForHumans() }}</span>
+                            </h4>
+                            <span class="fs-12 text-muted d-block"
+                                  id="{{ $chatting->seller_id }}"
+                                  data-name="{{ $chatting->seller->f_name.' '.$chatting->seller->l_name }}"
+                                  data-phone="{{ ($chatting->seller->country_code ?? '').($chatting->seller->phone ?? '') }}">
+                                {{ $chatting->seller->shop->name ?? $chatting->seller->email ?? $chatting->seller->phone }}
+                            </span>
+                            <div class="d-flex gap-2 justify-content-between align-items-center">
+                                <p class="fs-12 line--limit-1 mb-0">{{ Str::limit($chatting?->message) ?? 'Shared files' }}</p>
+                                @if(array_key_exists($chatting->seller_id, $countUnreadMessages))
+                                    <span id="count-unread-messages-{{ $chatting->seller_id }}"
+                                          class="bg-primary text-white fs-12 lh-1 rounded-circle aspect-1 min-w-20px p-1 d-flex justify-content-center align-items-center flex-shrink-0">
+                                        {{ $countUnreadMessages[$chatting->seller_id] }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    @if(!$chatting->seen_by_admin && !($key == 0))
+                        <div class="message-status bg-danger notify-alert-{{ $chatting->seller_id }}"></div>
+                    @endif
+                </div>
+            </div>
+        @endif
 
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        @if(!$chatting->seen_by_admin && !($key == 0))
-                                                            <div
-                                                                class="message-status bg-danger notify-alert-{{ $chatting->delivery_man_id }}"></div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        @endforeach
+    @endforeach
 
-                                        <div class="justify-content-center align-items-center h-100 min-h-300 d-none empty-state-for-chatting-msg">
-                                            <div class="d-flex flex-column align-items-center gap-3">
-                                                @if(request('type') == 'delivery-man')
-                                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-delivery-man-found.svg') }}"
-                                                         alt="">
-                                                    <p>{{ translate('No_Deliveryman_Found') }}</p>
-                                                @else
-                                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}"
-                                                         alt="">
-                                                    <p>{{ translate('No_Customer_Found') }}</p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="d-flex justify-content-center align-items-center h-100 min-h-300">
-                                            <div class="d-flex flex-column align-items-center gap-3">
-                                                @if(request('type') == 'delivery-man')
-                                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-delivery-man-found.svg') }}"
-                                                         alt="">
-                                                    <p>{{ translate('No_Deliveryman_Found') }}</p>
-                                                @else
-                                                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}"
-                                                         alt="">
-                                                    <p>{{ translate('No_Customer_Found') }}</p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endif
+    <div class="justify-content-center align-items-center h-100 min-h-300 d-none empty-state-for-chatting-msg">
+        <div class="d-flex flex-column align-items-center gap-3">
+            @if(request('type') == 'delivery-man')
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-delivery-man-found.svg') }}" alt="">
+                <p>{{ translate('No_Deliveryman_Found') }}</p>
+            @elseif(request('type') == 'vendor')
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}" alt="">
+                <p>No Vendor Found</p>
+            @else
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}" alt="">
+                <p>{{ translate('No_Customer_Found') }}</p>
+            @endif
+        </div>
+    </div>
+@else
+    <div class="d-flex justify-content-center align-items-center h-100 min-h-300">
+        <div class="d-flex flex-column align-items-center gap-3">
+            @if(request('type') == 'delivery-man')
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-delivery-man-found.svg') }}" alt="">
+                <p>{{ translate('No_Deliveryman_Found') }}</p>
+            @elseif(request('type') == 'vendor')
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}" alt="">
+                <p>No Vendor Found</p>
+            @else
+                <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/empty-state-icon/no-customer-found.svg') }}" alt="">
+                <p>{{ translate('No_Customer_Found') }}</p>
+            @endif
+        </div>
+    </div>
+@endif
                                 </div>
                             </div>
 
@@ -182,8 +253,13 @@
                         <div class="inbox_msg_header d-flex flex-wrap gap-3 justify-content-between align-items-center border px-3 py-2 rounded mb-4">
                             <div class="media align-items-center gap-3">
                                 <div class="position-relative">
-                                    <img width="35" class="rounded-circle aspect-1" id="profile_image" src="{{  getStorageImages(path: $lastChatUser->image_full_url,type: 'backend-profile')}}"
-                                         alt="Image Description">
+                                    <img width="35" class="rounded-circle aspect-1" id="profile_image"
+     src="{{ request('type') == 'vendor'
+        ? (!empty($lastChatUser?->image_full_url)
+            ? getStorageImages(path: $lastChatUser->image_full_url, type: 'backend-profile')
+            : getStorageImages(path: getWebConfig(name: 'company_fav_icon'), type: 'backend-logo'))
+        : getStorageImages(path: $lastChatUser->image_full_url, type: 'backend-profile') }}"
+     alt="Image Description">
                                          <span class="position-absolute bottom-0 start-100 translate-middle p-1 bg-success border border-white border-2 rounded-circle">
                                             <span class="visually-hidden">New alerts</span>
                                         </span>
@@ -193,17 +269,23 @@
                                     <span class="fs-12" id="profile_phone">{{ $lastChatUser['country_code'] }} {{ $lastChatUser['phone'] }}</span>
                                 </div>
                             </div>
-                            @if(Request::is('admin/messages/index/customer') || Request::is('admin/messages/index/delivery-man'))
+                            @if(in_array(request('type'), ['customer', 'delivery-man', 'vendor']))
                                 <div class="dropdown">
                                     <a class="text-dark" href="javascript:" role="button" id="viewDetailsDropdown" data-bs-toggle="dropdown">
                                         <img width="16" class="svg"  src="{{dynamicAsset(path: 'public/assets/back-end/img/icons/dots.svg')}}" alt="">
                                     </a>
                                     <div class="dropdown-menu dropdown-menu-right shadow-lg border p-3 w-0"
                                          aria-labelledby="viewDetailsDropdown">
-                                        <a class="dropdown-item bg-transparent p-0 text-center font-weight-medium user-details-route" target="_blank"
-                                           href="{{ Request::is('admin/messages/index/customer') ? route('admin.customer.view', $lastChatUser->id) : route('admin.delivery-man.earning-statement-overview', $lastChatUser->id) }}">
-                                            {{ translate('View_details') }}
-                                        </a>
+                                        <a class="dropdown-item bg-transparent p-0 text-center font-weight-medium user-details-route"
+   href="{{
+        request('type') == 'customer'
+            ? route('admin.customer.view', $lastChatUser->id)
+            : (request('type') == 'delivery-man'
+                ? route('admin.delivery-man.earning-statement-overview', $lastChatUser->id)
+                : route('admin.vendors.view', $lastChatUser->id))
+   }}">
+    {{ translate('View_details') }}
+</a>
                                     </div>
                                 </div>
                             @endif
@@ -217,9 +299,20 @@
 
                         <div class="type_msg">
                             <div class="input_msg_write">
-                                <form class="mt-4 chatting-messages-ajax-form" enctype="multipart/form-data">
+                                <form class="mt-4 chatting-messages-ajax-form" enctype="multipart/form-data" >
+
+                                </form>
                                     @csrf
-                                    <input type="hidden" id="current-user-hidden-id" value="{{ $lastChatUser->id }}" name="{{ $userType == 'customer' ? 'user_id' : 'delivery_man_id' }}">
+                                    <input type="hidden"
+       id="current-user-hidden-id"
+       value="{{ $lastChatUser->id }}"
+       name="{{
+            $userType == 'customer'
+                ? 'user_id'
+                : ($userType == 'vendor'
+                    ? 'seller_id'
+                    : 'delivery_man_id')
+       }}">
                                     <div class="position-relative d-flex">
                                         <div class="d-flex align-items-center m-0 position-absolute top-3 px-3 gap-2">
                                             <label class="py-0 cursor-pointer">
@@ -263,26 +356,26 @@
                                                 </svg>
                                             </label>
                                         </div>
-                                        <label class="w-0 flex-grow-1 uploaded-file-container">
-                                            <textarea class="form-control resize-none pt-3 radius-left-button pl-105px border-0"
-                                                      id="msgInputValue" name="message" type="text"
-                                                      placeholder="{{translate('send_a_message')}}"
-                                                      aria-label="Search"></textarea>
-                                            <div class="d-flex justify-content-between items-container">
-                                                <div class="overflow-x-auto pt-3 pb-2">
-                                                    <div>
-                                                        <div class="d-flex gap-3">
-                                                            <div class="d-flex gap-3 image-array"></div>
-                                                            <div class="d-flex gap-3 file-array"></div>
-                                                            <div class="d-flex gap-3 input-uploaded-file">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div id="selected-files-container"></div>
-                                                    <div id="selected-media-container"></div>
-                                                </div>
-                                            </div>
-                                        </label>
+                                        <div class="w-0 flex-grow-1 uploaded-file-container">
+    <textarea class="form-control resize-none pt-3 radius-left-button pl-105px border-0"
+              id="msgInputValue" name="message"
+              placeholder="{{ translate('send_a_message') }}"
+              aria-label="Message"></textarea>
+
+    <div class="d-flex justify-content-between items-container">
+        <div class="overflow-x-auto pt-3 pb-2">
+            <div>
+                <div class="d-flex gap-3">
+                    <div class="d-flex gap-3 image-array"></div>
+                    <div class="d-flex gap-3 file-array"></div>
+                    <div class="d-flex gap-3 input-uploaded-file"></div>
+                </div>
+            </div>
+            <div id="selected-files-container"></div>
+            <div id="selected-media-container"></div>
+        </div>
+    </div>
+</div>
                                         <div class="d-flex align-items-center justify-content-center bg-F1F7FF flex-shrink-0 radius-right-button">
                                             <button class="aSend bg-primary-light outline-0 border-0 shadow-0 px-0 h-100 send-btn" type="submit" id="msgSendBtn">
                                                 <img src="{{dynamicAsset(path: 'public/assets/back-end/img/send-icon.png')}}" alt="">
@@ -316,8 +409,13 @@
             </section>
         </div>
         <span id="chatting-post-url"
-              data-url="{{ Request::is('admin/messages/index/customer') ? route('admin.messages.message').'?user_id=' : route('admin.messages.message').'?delivery_man_id=' }}"></span>
-        <span id="image-url" data-url="{{ asset('storage/app/public/chatting') }}"></span>
+      data-url="{{
+            request('type') == 'customer'
+                ? route('admin.messages.message') . '?user_id='
+                : (request('type') == 'delivery-man'
+                    ? route('admin.messages.message') . '?delivery_man_id='
+                    : route('admin.messages.message') . '?seller_id=')
+      }}"></span>
     </div>
     <span id="get-file-icon" data-default-icon="{{dynamicAsset("public/assets/back-end/img/default-icon.png")}}"
           data-word-icon="{{dynamicAsset("public/assets/back-end/img/default-icon.png")}}"></span>

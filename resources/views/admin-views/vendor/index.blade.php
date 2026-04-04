@@ -108,13 +108,23 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <div class="d-flex justify-content-center gap-2">
-                                        <a title="{{translate('view')}}"
-                                            class="btn btn-outline-info icon-btn"
-                                            href="{{route('admin.vendors.view',$seller->id)}}">
-                                            <i class="fi fi-rr-eye"></i>
-                                        </a>
-                                    </div>
+                                    <td>
+    <div class="d-flex justify-content-center gap-2">
+        <a title="{{ translate('view') }}"
+           class="btn btn-outline-info icon-btn"
+           href="{{ route('admin.vendors.view', $seller->id) }}">
+            <i class="fi fi-rr-eye"></i>
+        </a>
+
+        @if($seller->status != 'pending')
+            <a title="{{ translate('chat') }}"
+               class="btn btn-outline-primary icon-btn"
+               href="{{ route('admin.messages.index', ['type' => 'vendor', 'vendor_id' => $seller->id]) }}">
+                <i class="fi fi-rr-comment-alt"></i>
+            </a>
+        @endif
+    </div>
+</td>
                                 </td>
                             </tr>
                         @endforeach

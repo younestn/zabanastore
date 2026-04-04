@@ -215,6 +215,15 @@
                                 </form>
                             </div>
                         @endif
+                        @if ($seller['status'] != 'pending')
+    <div class="d-flex justify-content-sm-end flex-wrap gap-2 mb-3">
+        <a href="{{ route('admin.messages.index', ['type' => 'vendor', 'vendor_id' => $seller['id']]) }}"
+           class="btn btn-outline-primary px-4">
+            <i class="fi fi-rr-comment-alt"></i>
+            {{ translate('chat_with_vendor') }}
+        </a>
+    </div>
+@endif
                         <div class="border rounded bg-white p-3 w-170">
                                 <div class="d-flex flex-column mb-1">
                                     <h5 class="fw-normal">{{translate('total_products')}} :</h5>

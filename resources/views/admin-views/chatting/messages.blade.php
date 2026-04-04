@@ -19,7 +19,7 @@
             }
         }
         ?>
-    @if ($message->sent_by_customer || $message->sent_by_delivery_man)
+    @if ($message->sent_by_customer || $message->sent_by_delivery_man || $message->sent_by_seller)
         <div class="incoming_msg d-flex align-items-end gap-2 my-2">
             <div class="">
                 <img width="25" class="avatar-img user-avatar-image border inbox-user-avatar-25 rounded-circle aspect-1" id="profile_image"

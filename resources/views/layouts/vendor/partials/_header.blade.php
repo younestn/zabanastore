@@ -154,29 +154,38 @@
                                 @endif
                             </a>
                             <div id="messageDropdown"
-                                 class="hs-unfold-content width--16rem dropdown-unfold dropdown-menu dropdown-menu-right navbar-dropdown-menu navbar-dropdown-account">
-                                <a class="dropdown-item position-relative"
-                                   href="{{route('vendor.messages.index', ['type' => 'customer'])}}">
-                                    <span class="text-truncate pr-2"
-                                          title="Settings">{{translate('customer')}}</span>
-                                    @php($messageCustomer=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['user_id'])->count())
-                                    @if($messageCustomer > 0)
-                                        <span
-                                            class="btn-status btn-sm-status-custom btn-status-danger">{{$messageCustomer}}</span>
-                                    @endif
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item position-relative"
-                                   href="{{route('vendor.messages.index', ['type' => 'delivery-man'])}}">
-                                    <span class="text-truncate pr-2"
-                                          title="Settings">{{translate('delivery_man')}}</span>
-                                    @php($messageDeliveryMan =\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['delivery_man_id'])->count())
-                                    @if($messageDeliveryMan > 0)
-                                        <span
-                                            class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageDeliveryMan }}</span>
-                                    @endif
-                                </a>
-                            </div>
+     class="hs-unfold-content width--16rem dropdown-unfold dropdown-menu dropdown-menu-right navbar-dropdown-menu navbar-dropdown-account">
+    <a class="dropdown-item position-relative"
+       href="{{ route('vendor.messages.index', ['type' => 'customer']) }}">
+        <span class="text-truncate pr-2" title="Settings">{{ translate('customer') }}</span>
+        @php($messageCustomer=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['user_id'])->count())
+        @if($messageCustomer > 0)
+            <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageCustomer }}</span>
+        @endif
+    </a>
+
+    <div class="dropdown-divider"></div>
+
+    <a class="dropdown-item position-relative"
+       href="{{ route('vendor.messages.index', ['type' => 'delivery-man']) }}">
+        <span class="text-truncate pr-2" title="Settings">{{ translate('delivery_man') }}</span>
+        @php($messageDeliveryMan = \App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['delivery_man_id'])->count())
+        @if($messageDeliveryMan > 0)
+            <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageDeliveryMan }}</span>
+        @endif
+    </a>
+
+    <div class="dropdown-divider"></div>
+
+    <a class="dropdown-item position-relative"
+       href="{{ route('vendor.messages.index', ['type' => 'admin']) }}">
+        <span class="text-truncate pr-2" title="Settings">{{ translate('admin') }}</span>
+        @php($messageAdmin = \App\Models\Chatting::where(['seen_by_seller' => 0, 'seller_id' => auth('seller')->id(), 'admin_id' => 0])->count())
+        @if($messageAdmin > 0)
+            <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageAdmin }}</span>
+        @endif
+    </a>
+</div>
                         </div>
                     </li>
 

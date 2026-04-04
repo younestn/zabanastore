@@ -135,50 +135,69 @@ trait PushNotificationTrait
      * @return void
      */
     protected function chattingNotification(string $key, string $type, object $userData, object $messageForm): void
-    {
-        try {
-            $fcm_token = $type == 'delivery_man' ? $userData?->fcm_token : $userData?->cm_firebase_token;
-            if ($fcm_token) {
-                $lang = $userData?->app_language ?? getDefaultLanguage();
-                $value = $this->pushNotificationMessage($key, $type, $lang);
-                if ($value) {
-                    $value = $this->textVariableDataFormat(
-                        value: $value,
-                        key: $key,
-                        userName: "{$messageForm?->f_name} ",
-                        shopName: "{$messageForm?->shop?->name}",
-                        deliveryManName: "{$messageForm?->f_name}",
-                        time: now()->diffForHumans()
-                    );
-                    if ($key == 'message_from_admin') {
-                        $messageFromType = 'admin';
-                    } elseif ($key == 'message_from_customer') {
-                        $messageFromType = 'customer';
-                    } elseif ($key == 'message_from_seller') {
-                        $messageFromType = 'seller';
-                    } elseif ($key == 'message_from_delivery_man') {
-                        $messageFromType = 'delivery_man';
-                    } else {
-                        $messageFromType = '';
-                    }
-                    $data = [
-                        'title' => translate('message'),
-                        'description' => $value,
-                        'order_id' => '',
-                        'image' => '',
-                        'type' => 'chatting',
-                        'message_key' => $key,
-                        'notification_key' => $key,
-                        'notification_from' => $messageFromType,
-                    ];
-                    $this->sendChattingPushNotificationToDevice($fcm_token, $data);
+{
+    try {
+        $fcm_token = $type == 'delivery_man' ? $userData?->fcm_token : $userData?->cm_firebase_token;
+        if ($fcm_token) {
+            $lang = $userData?->app_language ?? getDefaultLanguage();
+            $value = $this->pushNotificationMessage($key, $type, $lang);
+
+            if ($value) {
+                $value = $this->textVariableDataFormat(
+                    value: $value,
+                    key: $key,
+                    userName: "{$messageForm?->f_name} ",
+                    shopName: "{$messageForm?->shop?->name}",
+                    deliveryManName: "{$messageForm?->f_name}",
+                    time: now()->diffForHumans()
+                );
+
+                if ($key == 'message_from_admin') {
+                    $messageFromType = 'admin';
+                } elseif ($key == 'message_from_customer') {
+                    $messageFromType = 'customer';
+                } elseif ($key == 'message_from_seller') {
+                    $messageFromType = 'seller';
+                } elseif ($key == 'message_from_delivery_man') {
+                    $messageFromType = 'delivery_man';
+                } else {
+                    $messageFromType = '';
                 }
+
+                $chatType = '';
+                $chatTargetId = '';
+
+                // الحالة التي تهمك الآن: البائع -> الأدمن
+                if ($key == 'message_from_seller' && $type == 'admin') {
+                    $chatType = 'vendor';
+                    $chatTargetId = (string)($messageForm->id ?? '');
+                }
+
+                // الأدمن -> البائع
+                if ($key == 'message_from_admin' && $type == 'seller') {
+                    $chatType = 'admin';
+                    $chatTargetId = '0';
+                }
+
+                $data = [
+                    'title' => translate('message'),
+                    'description' => $value,
+                    'order_id' => '',
+                    'image' => '',
+                    'type' => 'chatting',
+                    'message_key' => $key,
+                    'notification_key' => $key,
+                    'notification_from' => $messageFromType,
+                    'chat_type' => $chatType,
+                    'chat_target_id' => $chatTargetId,
+                ];
+
+                $this->sendChattingPushNotificationToDevice($fcm_token, $data);
             }
-        } catch (\Exception $exception) {
-
         }
-
+    } catch (\Exception $exception) {
     }
+}
 
     protected function withdrawStatusUpdateNotification(string $key, string $type, string $lang, int $status, string $fcmToken): void
     {
@@ -403,6 +422,8 @@ trait PushNotificationTrait
                     'message_key' => (string)($data['message_key'] ?? ''),
                     'notification_key' => (string)($data['notification_key'] ?? ''),
                     'notification_from' => (string)($data['notification_from'] ?? ''),
+                    'chat_type' => (string)($data['chat_type'] ?? ''),
+                    'chat_target_id' => (string)($data['chat_target_id'] ?? ''),
                 ],
                 'notification' => [
                     'title' => (string)$data['title'],

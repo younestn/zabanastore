@@ -1,7 +1,7 @@
 "use strict";
 
 // let selectedImage = [];
-$(document).on("ready", function () {
+$(document).ready(function () {
     ajaxFormRenderChattingMessages();
 
     $("#myInput").on("keyup keypress change", function () {
@@ -56,11 +56,13 @@ $(document).on("ready", function () {
                         "href",
                         response.userData.detailsRoute
                     );
-                    $(".get-ajax-message-view.active")[0].scrollIntoView({
-                        behavior: "auto",
-                        block: "nearest",
-                        inline: "center",
-                    });
+                if ($(".get-ajax-message-view.active").length) {
+    $(".get-ajax-message-view.active")[0].scrollIntoView({
+        behavior: "auto",
+        block: "nearest",
+        inline: "center"
+    });
+}
                     imageSlider();
                     toggleVideo();
                     downloadZip();
@@ -92,6 +94,7 @@ $(document).on("ready", function () {
                 data: formData,
                 processData: false,
                 contentType: false,
+                dataType: "json",
                 xhr: function() {
                     var xhr = new window.XMLHttpRequest();
                     xhr.upload.addEventListener(
@@ -123,30 +126,37 @@ $(document).on("ready", function () {
                     $("#loading").fadeIn();
                 },
                 success: function (response) {
-                    $("#chatting-messages-section").html(response.chattingMessages);
-                    $("#msgInputValue").val("");
-                    $(".image-array").empty();
-                    $(".file-array").empty();
-                    let container = document.getElementById(
-                        "selected-files-container"
-                    );
-                    let containerImage = document.getElementById(
-                        "selected-media-container"
-                    );
-                    container.innerHTML = "";
-                    containerImage.innerHTML = "";
-                    selectedFiles = [];
-                    selectedImages = [];
-                    imageSlider();
-                    toggleVideo();
-                    downloadZip();
-                    namePdf();
-                    manipulateTooltip();
-                    setTimeout(() => {
-                        $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
-                        $(".circle-progress").hide();
-                    }, 1000)
-                },
+    $("#msgInputValue").val("");
+    $(".image-array").empty();
+    $(".file-array").empty();
+
+    let container = document.getElementById("selected-files-container");
+    let containerImage = document.getElementById("selected-media-container");
+    if (container) container.innerHTML = "";
+    if (containerImage) containerImage.innerHTML = "";
+
+    selectedFiles = [];
+    selectedImages = [];
+
+    // أعد تحميل المحادثة النشطة كاملة بدل الاكتفاء برد POST
+    const activeChat = $(".get-ajax-message-view.active");
+    if (activeChat.length) {
+        activeChat.trigger("click");
+    } else if (response.chattingMessages) {
+        $("#chatting-messages-section").html(response.chattingMessages);
+    }
+
+    imageSlider();
+    toggleVideo();
+    downloadZip();
+    namePdf();
+    manipulateTooltip();
+
+    setTimeout(() => {
+        $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
+        $(".circle-progress").hide();
+    }, 1000);
+},
                 complete: function () {
                     $("#loading").fadeOut();
                     $(".circle-progress").hide();

@@ -1,13 +1,18 @@
 @php
-    use App\Models\Seller;
-    use Illuminate\Support\Facades\Session;
-    use Illuminate\Support\Carbon;
-    use App\Models\Shop;
-    $shop= Shop::where(['seller_id'=>auth('seller')->id()])->first();
-    $vendor= Seller::find(auth('seller')->id());
+
+
+
+    $shop = \App\Models\Shop::where(['seller_id' => auth('seller')->id()])->first();
+    $vendor = \App\Models\Seller::find(auth('seller')->id());
+    $direction = \Illuminate\Support\Facades\Session::get('direction') ?? 'ltr';
+    $local = session()->has('local') ? session('local') : 'en';
+    $lang = \App\Models\BusinessSetting::where('type', 'language')->first();
+
+    $navWrapStyle = $direction === 'rtl'
+        ? 'margin-left:unset; margin-right:auto'
+        : 'margin-right:unset; margin-left:auto';
 @endphp
 
-@php($direction = Session::get('direction'))
 <div id="headerMain" class="d-none">
     <header id="header"
             class="navbar navbar-expand-lg navbar-fixed navbar-height navbar-flush navbar-container navbar-bordered">
@@ -43,60 +48,59 @@
                     </form>
                 </div>
             </div>
-            <div class="navbar-nav-wrap-content-right"
-                 style="{{$direction === "rtl" ? 'margin-left:unset; margin-right: auto' : 'margin-right:unset; margin-left: auto'}}">
-                <ul class="navbar-nav align-items-center flex-row gap-2 gap-xl-16px">
-                    <li class="nav-item">
-                        <div class="hs-unfold">
-                            <a title="{{translate('website_shop_view')}}"
-                               class="js-hs-unfold-invoker btn btn-icon btn-ghost-secondary rounded-circle"
-                               href="{{ route('shopView', ['slug' => $shop['slug']]) }}" target="_blank"
-                               data-toggle="tooltip"
-                               data-custom-class="header-icon-title">
-                                <i class="fi fi-rr-globe fs-18"></i>
-                            </a>
-                        </div>
-                    </li>
+            <div class="navbar-nav-wrap-content-right" style="{{ $navWrapStyle }}">
+    <ul class="navbar-nav align-items-center flex-row gap-2 gap-xl-16px">
+        <li class="nav-item">
+            <div class="hs-unfold">
+                <a title="{{ translate('website_shop_view') }}"
+                   class="js-hs-unfold-invoker btn btn-icon btn-ghost-secondary rounded-circle"
+                   href="{{ route('shopView', ['slug' => $shop['slug']]) }}"
+                   target="_blank"
+                   data-toggle="tooltip"
+                   data-custom-class="header-icon-title">
+                    <i class="fi fi-rr-globe fs-18"></i>
+                </a>
+            </div>
+        </li>
 
-                    <li class="nav-item mt-n2">
-                        <div class="hs-unfold">
-                            <div>
-                                @php( $local = session()->has('local')?session('local'):'en')
-                                @php($lang = \App\Models\BusinessSetting::where('type', 'language')->first())
-                                <div
-                                    class="topbar-text dropdown disable-autohide {{$direction === "rtl" ? 'ml-3' : 'm-1'}} text-capitalize">
-                                    <a class="topbar-link d-flex align-items-center"
-                                       href="javascript:" data-toggle="dropdown"
-                                    >
-                                        @foreach(json_decode($lang['value'],true) as $data)
-                                            @if($data['code']==$local)
-                                                <img width="20"
-                                                     src="{{dynamicAsset(path: 'public/assets/front-end/img/flags/'.$data['code'].'.png')}}"
-                                                     alt="{{$data['name']}}">
-                                            @endif
-                                        @endforeach
-                                    </a>
-                                    <ul class="dropdown-menu position-absolute">
-                                        @foreach(json_decode($lang['value'],true) as $key =>$data)
-                                            @if($data['status']==1)
-                                                <li class="change-language" data-action="{{route('change-language')}}"
-                                                    data-language-code="{{$data['code']}}">
-                                                    <a class="dropdown-item pb-1 {{$data['code']==$local ? 'active' : ':'}}"
-                                                       href="javascript:">
-                                                        <img class="{{$direction === "rtl" ? 'ml-2' : 'mr-2'}}"
-                                                             width="20"
-                                                             src="{{dynamicAsset(path: 'public/assets/front-end/img/flags/'.$data['code'].'.png')}}"
-                                                             alt="{{$data['name']}}"/>
-                                                        <span class="text-capitalize">{{$data['name']}}</span>
-                                                    </a>
-                                                </li>
-                                            @endif
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </li>
+        <li class="nav-item mt-n2">
+            <div class="hs-unfold">
+                <div>
+                    <div class="topbar-text dropdown disable-autohide {{ $direction === 'rtl' ? 'ml-3' : 'm-1' }} text-capitalize">
+                        <a class="topbar-link d-flex align-items-center"
+                           href="javascript:"
+                           data-toggle="dropdown">
+                            @foreach(json_decode($lang['value'], true) as $data)
+                                @if($data['code'] == $local)
+                                    <img width="20"
+                                         src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
+                                         alt="{{ $data['name'] }}">
+                                @endif
+                            @endforeach
+                        </a>
+
+                        <ul class="dropdown-menu position-absolute">
+                            @foreach(json_decode($lang['value'], true) as $key => $data)
+                                @if($data['status'] == 1)
+                                    <li class="change-language"
+                                        data-action="{{ route('change-language') }}"
+                                        data-language-code="{{ $data['code'] }}">
+                                        <a class="dropdown-item pb-1 {{ $data['code'] == $local ? 'active' : '' }}"
+                                           href="javascript:">
+                                            <img class="{{ $direction === 'rtl' ? 'ml-2' : 'mr-2' }}"
+                                                 width="20"
+                                                 src="{{ dynamicAsset(path: 'public/assets/front-end/img/flags/' . $data['code'] . '.png') }}"
+                                                 alt="{{ $data['name'] }}">
+                                            <span class="text-capitalize">{{ $data['name'] }}</span>
+                                        </a>
+                                    </li>
+                                @endif
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </li>
 
                     <li class="nav-item">
                         <div class="hs-unfold">
@@ -108,7 +112,7 @@
                                    }' title="{{translate('Notifications')}}" data-toggle="tooltip"
                                data-custom-class="header-icon-title">
                                 <i class="fi fi-sr-bells"></i>
-                                @php($notification=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->whereDoesntHave('notificationSeenBy')->count())
+                                @php($notification=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, \Illuminate\Support\Carbon::now()])->where('sent_to', 'seller')->whereDoesntHave('notificationSeenBy')->count())
                                 @if($notification != 0)
                                     <span
                                         class="btn-status btn-sm-status btn-status-danger notification_data_new_count">{{ $notification }}</span>
@@ -116,7 +120,7 @@
                             </a>
                             <div id="notificationDropdown"
                                  class="hs-unfold-content dropdown-unfold dropdown-menu dropdown-menu-right navbar-dropdown-menu navbar-dropdown-account py-0 overflow-hidden width--20rem">
-                                @php($notification_data=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, Carbon::now()])->where('sent_to', 'seller')->with('notificationSeenBy')->latest()->get())
+                                @php($notification_data=App\Models\Notification::whereBetween('created_at', [auth('seller')->user()->created_at, \Illuminate\Support\Carbon::now()])->where('sent_to', 'seller')->with('notificationSeenBy')->latest()->get())
                                 @foreach ($notification_data as $item)
                                     <button class="dropdown-item position-relative notification-data-view"
                                             data-id="{{ $item->id }}">
@@ -148,7 +152,11 @@
                                 data-custom-class="header-icon-title"
                             >
                                 <i class="fi fi-sr-comment-alt-dots fs-18"></i>
-                                @php($message=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->count())
+                                @php($message=\App\Models\Chatting::where([
+    'seen_by_seller' => 0,
+    'seller_id' => auth('seller')->id(),
+    'notification_receiver' => 'seller'
+])->count())
                                 @if($message!=0)
                                     <span class="btn-status btn-sm-status btn-status-danger">{{ $message }}</span>
                                 @endif
@@ -158,7 +166,11 @@
     <a class="dropdown-item position-relative"
        href="{{ route('vendor.messages.index', ['type' => 'customer']) }}">
         <span class="text-truncate pr-2" title="Settings">{{ translate('customer') }}</span>
-        @php($messageCustomer=\App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['user_id'])->count())
+        @php($messageCustomer=\App\Models\Chatting::where([
+    'seen_by_seller' => 0,
+    'seller_id' => auth('seller')->id(),
+    'notification_receiver' => 'seller'
+])->whereNotNull(['user_id'])->count())
         @if($messageCustomer > 0)
             <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageCustomer }}</span>
         @endif
@@ -169,7 +181,11 @@
     <a class="dropdown-item position-relative"
        href="{{ route('vendor.messages.index', ['type' => 'delivery-man']) }}">
         <span class="text-truncate pr-2" title="Settings">{{ translate('delivery_man') }}</span>
-        @php($messageDeliveryMan = \App\Models\Chatting::where(['seen_by_seller'=>0, 'seller_id'=>auth('seller')->id()])->whereNotNull(['delivery_man_id'])->count())
+        @php($messageDeliveryMan = \App\Models\Chatting::where([
+    'seen_by_seller' => 0,
+    'seller_id' => auth('seller')->id(),
+    'notification_receiver' => 'seller'
+])->whereNotNull(['delivery_man_id'])->count())
         @if($messageDeliveryMan > 0)
             <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageDeliveryMan }}</span>
         @endif
@@ -180,7 +196,12 @@
     <a class="dropdown-item position-relative"
        href="{{ route('vendor.messages.index', ['type' => 'admin']) }}">
         <span class="text-truncate pr-2" title="Settings">{{ translate('admin') }}</span>
-        @php($messageAdmin = \App\Models\Chatting::where(['seen_by_seller' => 0, 'seller_id' => auth('seller')->id(), 'admin_id' => 0])->count())
+        @php($messageAdmin = \App\Models\Chatting::where([
+    'seen_by_seller' => 0,
+    'seller_id' => auth('seller')->id(),
+    'admin_id' => 0,
+    'notification_receiver' => 'seller'
+])->count())
         @if($messageAdmin > 0)
             <span class="btn-status btn-sm-status-custom btn-status-danger">{{ $messageAdmin }}</span>
         @endif
@@ -261,36 +282,40 @@
         <div id="website_info" class="bg-secondary w-100 d-none">
             <div class="p-3">
                 <div class="bg-white p-1 rounded">
-                    <div
-                        class="topbar-text dropdown disable-autohide {{$direction === "rtl" ? 'ml-3' : 'm-1'}} text-capitalize">
-                        <a class="topbar-link dropdown-toggle title-color d-flex align-items-center" href="#"
-                           data-toggle="dropdown">
-                            @foreach(json_decode($lang['value'],true) as $data)
-                                @if($data['code']==$local)
-                                    <img class="{{$direction === "rtl" ? 'ml-2' : 'mr-2'}}" width="20"
-                                         src="{{dynamicAsset(path: 'public/assets/front-end').'/img/flags/'.$data['code']}}.png"
-                                         alt="{{$data['name']}}">
-                                    {{$data['name']}}
-                                @endif
-                            @endforeach
+    <div class="topbar-text dropdown disable-autohide {{ $direction === 'rtl' ? 'ml-3' : 'm-1' }} text-capitalize">
+        <a class="topbar-link dropdown-toggle title-color d-flex align-items-center"
+           href="#"
+           data-toggle="dropdown">
+            @foreach(json_decode($lang['value'], true) as $data)
+                @if($data['code'] == $local)
+                    <img class="{{ $direction === 'rtl' ? 'ml-2' : 'mr-2' }}"
+                         width="20"
+                         src="{{ dynamicAsset(path: 'public/assets/front-end') . '/img/flags/' . $data['code'] . '.png' }}"
+                         alt="{{ $data['name'] }}">
+                    {{ $data['name'] }}
+                @endif
+            @endforeach
+        </a>
+
+        <ul class="dropdown-menu">
+            @foreach(json_decode($lang['value'], true) as $key => $data)
+                @if($data['status'] == 1)
+                    <li class="change-language"
+                        data-action="{{ route('change-language') }}"
+                        data-language-code="{{ $data['code'] }}">
+                        <a class="dropdown-item pb-1" href="javascript:">
+                            <img class="{{ $direction === 'rtl' ? 'ml-2' : 'mr-2' }}"
+                                 width="20"
+                                 src="{{ dynamicAsset(path: 'public/assets/front-end') . '/img/flags/' . $data['code'] . '.png' }}"
+                                 alt="{{ $data['name'] }}">
+                            <span class="text-capitalize">{{ $data['name'] }}</span>
                         </a>
-                        <ul class="dropdown-menu">
-                            @foreach(json_decode($lang['value'],true) as $key =>$data)
-                                @if($data['status']==1)
-                                    <li class="change-language" data-action="{{route('change-language')}}"
-                                        data-language-code="{{$data['code']}}">
-                                        <a class="dropdown-item pb-1" href="javascript:">
-                                            <img class="{{$direction === "rtl" ? 'ml-2' : 'mr-2'}}" width="20"
-                                                 src="{{dynamicAsset(path: 'public/assets/front-end').'/img/flags/'.$data['code']}}.png"
-                                                 alt="{{$data['name']}}"/>
-                                            <span class="text-capitalize">{{$data['name']}}</span>
-                                        </a>
-                                    </li>
-                                @endif
-                            @endforeach
-                        </ul>
-                    </div>
-                </div>
+                    </li>
+                @endif
+            @endforeach
+        </ul>
+    </div>
+</div>
                 <div class="bg-white p-1 rounded mt-2">
                     <a title="{{('website_shop_view')}}" class="p-2 title-color"
                        href="{{route('shopView',['slug' => $shop['slug'] ])}}" target="_blank" data-toggle="tooltip"

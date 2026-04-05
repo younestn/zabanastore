@@ -23,6 +23,28 @@ interface ChattingRepositoryInterface extends RepositoryInterface
      * @param array $orderBy
      * @return Collection
      */
+
+
+/**
+ * @param array $orderBy
+ * @param string|null $searchValue
+ * @param array $filters
+ * @param array $whereNotNull
+ * @param array $relations
+ * @param int|string $dataLimit
+ * @param int|null $offset
+ * @return \Illuminate\Database\Eloquent\Collection|\Illuminate\Pagination\LengthAwarePaginator
+ */
+public function getListWhereNotNull(
+    array $orderBy = [],
+    string $searchValue = null,
+    array $filters = [],
+    array $whereNotNull = [],
+    array $relations = [],
+    int|string $dataLimit = DEFAULT_DATA_LIMIT,
+    int $offset = null
+): \Illuminate\Database\Eloquent\Collection|\Illuminate\Pagination\LengthAwarePaginator;
+
     public function getListBySelectWhere(array $joinColumn = [], array $select = [], array $filters = [], array $orderBy = []): Collection;
 
     /**

@@ -1,15 +1,84 @@
 "use strict";
 
 $(document).ready(function () {
-    ajaxFormRenderChattingMessages();
+    const $document = $(document);
+    const pollingIntervalInMs = 4000;
+    let activeChatPollingInterval = null;
 
-    $("#myInput").on("keyup keypress change", function () {
-        var value = $(this).val().toLowerCase();
+    function getCsrfToken() {
+        return $('meta[name="csrf-token"]').attr("content");
+    }
 
-        $(".list_filter").each(function () {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+    function getChatBaseUrl() {
+        return $("#chatting-post-url").data("url") || "";
+    }
+
+    function getCurrentActiveChat() {
+        return $(".get-ajax-message-view.active").first();
+    }
+
+    function getCurrentUserId() {
+        const hiddenId = $("#current-user-hidden-id").val();
+        if (hiddenId !== undefined && hiddenId !== null && hiddenId !== "") {
+            return hiddenId;
+        }
+
+        const $activeChat = getCurrentActiveChat();
+        return $activeChat.length ? $activeChat.data("user-id") : "";
+    }
+
+    function getSelectedFilesCount() {
+        const filesCount =
+            typeof selectedFiles !== "undefined" && Array.isArray(selectedFiles)
+                ? selectedFiles.length
+                : 0;
+
+        const imagesCount =
+            typeof selectedImages !== "undefined" && Array.isArray(selectedImages)
+                ? selectedImages.length
+                : 0;
+
+        return filesCount + imagesCount;
+    }
+
+    function clearSelectedUploads() {
+        $(".image-array").empty();
+        $(".file-array").empty();
+        $(".input-uploaded-file").empty();
+
+        const filesContainer = document.getElementById("selected-files-container");
+        const mediaContainer = document.getElementById("selected-media-container");
+
+        if (filesContainer) {
+            filesContainer.innerHTML = "";
+        }
+
+        if (mediaContainer) {
+            mediaContainer.innerHTML = "";
+        }
+
+        if (typeof selectedFiles !== "undefined") {
+            selectedFiles = [];
+        }
+
+        if (typeof selectedImages !== "undefined") {
+            selectedImages = [];
+        }
+    }
+
+    function setAjaxHeaders() {
+        $.ajaxSetup({
+            headers: {
+                "X-XSRF-TOKEN": getCsrfToken(),
+            },
         });
+    }
 
+    function initializeTooltips() {
+        $('[data-toggle="tooltip"], [data-bs-toggle="tooltip"]').tooltip();
+    }
+
+    function updateEmptyState() {
         let visibleUsers = $(".list_filter:visible").length;
 
         if (visibleUsers > 0) {
@@ -17,354 +86,417 @@ $(document).ready(function () {
         } else {
             $(".empty-state-for-chatting-msg").removeClass("d-none").addClass("d-flex");
         }
+    }
+
+    function filterChatList() {
+        const value = ($("#myInput").val() || "").toLowerCase();
+
+        $(".list_filter").each(function () {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+
+        updateEmptyState();
+    }
+
+    function updateHeaderAndMessages(response, userId) {
+        if (!response || !response.userData) {
+            return;
+        }
+
+        $("#chatting-messages-section").html(response.chattingMessages || "");
+        $("#profile_image").attr("src", response.userData.image || "");
+        $("#profile_name").html(response.userData.name || "");
+        $("#profile_phone").html(response.userData.phone || "");
+        $("#current-user-hidden-id").val(userId);
+        $(".user-details-route").attr("href", response.userData.detailsRoute || "#");
+
+        namePdf();
+        initializeTooltips();
+        scrollChatToLatest();
+    }
+
+    function scrollChatToLatest() {
+        const container = document.getElementById("chatting-messages-section");
+        if (container) {
+            container.scrollTop = 0;
+        }
+    }
+
+    function loadChatMessages(userId, options = {}) {
+        if (!userId) {
+            return;
+        }
+
+        const actionURL = getChatBaseUrl() + encodeURIComponent(userId);
+
+        setAjaxHeaders();
+
+        $.ajax({
+            url: actionURL,
+            type: "GET",
+            dataType: "json",
+            cache: false,
+            beforeSend: function () {
+                if (options.showLoader !== false) {
+                    $("#loading").fadeIn();
+                }
+            },
+            success: function (response) {
+                updateHeaderAndMessages(response, userId);
+
+                if (options.keepActiveScrollIntoView !== false) {
+                    const $activeChat = getCurrentActiveChat();
+                    if ($activeChat.length) {
+                        $activeChat[0].scrollIntoView({
+                            behavior: "auto",
+                            block: "nearest",
+                            inline: "center",
+                        });
+                    }
+                }
+            },
+            complete: function () {
+                if (options.showLoader !== false) {
+                    $("#loading").fadeOut();
+                }
+            },
+        });
+    }
+
+    function startActiveChatPolling() {
+        stopActiveChatPolling();
+
+        activeChatPollingInterval = setInterval(function () {
+            if (document.hidden) {
+                return;
+            }
+
+            const userId = getCurrentUserId();
+            if (!userId) {
+                return;
+            }
+
+            loadChatMessages(userId, {
+                showLoader: false,
+                keepActiveScrollIntoView: false,
+            });
+        }, pollingIntervalInMs);
+    }
+
+    function stopActiveChatPolling() {
+        if (activeChatPollingInterval) {
+            clearInterval(activeChatPollingInterval);
+            activeChatPollingInterval = null;
+        }
+    }
+
+    function updateActiveChatPreview(messageText) {
+        const $activeChat = getCurrentActiveChat();
+        if (!$activeChat.length) {
+            return;
+        }
+
+        const previewText = (messageText || "").trim() !== "" ? messageText : "Shared files";
+        $activeChat.find(".line--limit-1").first().text(previewText);
+    }
+
+    $("#myInput").on("keyup keypress change", function () {
+        filterChatList();
     });
 
     $("#chat-search-form").on("submit", function (e) {
         e.preventDefault();
     });
 
-    $(".get-ajax-message-view").on("click", function () {
+    $document.on("click", ".get-ajax-message-view", function (e) {
+        e.preventDefault();
+
+        const $this = $(this);
+        const userId = $this.data("user-id");
+
         $(".get-ajax-message-view").removeClass("bg-soft-secondary active");
-        $(this).addClass("bg-soft-secondary active");
+        $this.addClass("bg-soft-secondary active");
 
-        let userId = $(this).data("user-id");
         $(".notify-alert-" + userId).remove();
-
-        let actionURL = $("#chatting-post-url").data("url") + userId;
-
         $("#count-unread-messages-" + userId).remove();
-        $(".get-ajax-message-view").find(".chat_ib h5").addClass("font-weight-normal");
-        $(this).find(".chat_ib h5").removeClass("font-weight-normal");
 
-        $.ajaxSetup({
-            headers: {
-                "X-XSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-            },
+        $(".get-ajax-message-view").find(".chat_ib h5").addClass("font-weight-normal");
+        $this.find(".chat_ib h5").removeClass("font-weight-normal");
+
+        loadChatMessages(userId, {
+            showLoader: true,
+            keepActiveScrollIntoView: true,
         });
 
+        startActiveChatPolling();
+    });
+
+    $document.on("submit", ".chatting-messages-ajax-form", function (event) {
+        event.preventDefault();
+
+        const form = this;
+        const formData = new FormData(form);
+        const totalFilesCount = getSelectedFilesCount();
+        const currentMessageText = ($("#msgInputValue").val() || "").trim();
+
+        setAjaxHeaders();
+
         $.ajax({
-            url: actionURL,
-            type: "GET",
+            type: "POST",
+            url: getChatBaseUrl(),
+            data: formData,
+            processData: false,
+            contentType: false,
             dataType: "json",
+            xhr: function () {
+                const xhr = new window.XMLHttpRequest();
+
+                xhr.upload.addEventListener(
+                    "progress",
+                    function (evt) {
+                        if (evt.lengthComputable && totalFilesCount > 0) {
+                            const percentComplete = (evt.loaded / evt.total) * 100;
+
+                            $(".circle-progress").show();
+                            $(".circle-progress").find(".text").text(`Uploading ${totalFilesCount} files`);
+                            $(".circle-progress")
+                                .find("#bar")
+                                .attr("stroke-dashoffset", 100 - percentComplete);
+                        }
+                    },
+                    false
+                );
+
+                return xhr;
+            },
             beforeSend: function () {
+                $("#msgSendBtn").attr("disabled", true);
                 $("#loading").fadeIn();
             },
             success: function (response) {
-                if (response.userData) {
+                $("#msgInputValue").val("");
+                clearSelectedUploads();
+                updateActiveChatPreview(currentMessageText);
+
+                const userId = getCurrentUserId();
+
+                if (userId) {
+                    loadChatMessages(userId, {
+                        showLoader: false,
+                        keepActiveScrollIntoView: false,
+                    });
+                } else if (response.chattingMessages) {
                     $("#chatting-messages-section").html(response.chattingMessages);
-                    $("#profile_image").attr("src", response.userData.image);
-                    $("#profile_name").html(response.userData.name);
-                    $("#profile_phone").html(response.userData.phone);
-                    $("#current-user-hidden-id").val(userId);
-                    $(".user-details-route").attr("href", response.userData.detailsRoute);
-
-                    if ($(".get-ajax-message-view.active").length) {
-                        $(".get-ajax-message-view.active")[0].scrollIntoView({
-                            behavior: "auto",
-                            block: "nearest",
-                            inline: "center",
-                        });
-                    }
-
-                    imageSlider();
-                    toggleVideo();
-                    downloadZip();
                     namePdf();
-                    manipulateTooltip();
+                    initializeTooltips();
+                    scrollChatToLatest();
                 }
+
+                setTimeout(() => {
+                    $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
+                    $(".circle-progress").hide();
+                }, 1000);
+
+                startActiveChatPolling();
             },
             complete: function () {
                 $("#loading").fadeOut();
-                $('[data-toggle="tooltip"]').tooltip();
+                $(".circle-progress").hide();
+                $("#msgSendBtn").removeAttr("disabled");
+                initializeTooltips();
+
+                setTimeout(() => {
+                    $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
+                    $(".circle-progress").hide();
+                }, 1000);
+            },
+            error: function (error) {
+                if (error.status === 413) {
+                    toastMagic.warning($("#message-media-error").data("text"));
+                } else {
+                    try {
+                        const errorData = JSON.parse(error.responseText);
+                        toastMagic.warning(errorData.message);
+                    } catch (e) {
+                        toastMagic.error($("#message-media-error").data("text"));
+                    }
+                }
+
+                setTimeout(() => {
+                    $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
+                    $(".circle-progress").hide();
+                }, 1000);
             },
         });
     });
 
-    function ajaxFormRenderChattingMessages() {
-        $(".chatting-messages-ajax-form").on("submit", function (event) {
-            event.preventDefault();
+    $document.on("click", '[data-target^="#imgViewModal"], [data-bs-target^="#imgViewModal"]', function () {
+        const modalId = $(this).attr("data-bs-target") || $(this).attr("data-target");
+        if (!modalId) {
+            return;
+        }
 
-            let formData = new FormData(this);
-            let totalFilesCount = (window.selectedFiles?.length || 0) + (window.selectedImages?.length || 0);
+        const $modal = $(modalId);
+        const $carousel = $modal.find(".imgView-slider");
+        const slideCount = $modal.find(".imgView-item").length;
 
-            $.ajaxSetup({
-                headers: {
-                    "X-XSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-                },
-            });
+        if ($carousel.hasClass("owl-loaded")) {
+            $carousel.trigger("destroy.owl.carousel");
+            $carousel.removeClass("owl-loaded");
+            $carousel.find(".owl-stage-outer").children().unwrap();
+        }
 
-            $.ajax({
-                type: "POST",
-                url: $("#chatting-post-url").data("url"),
-                data: formData,
-                processData: false,
-                contentType: false,
-                dataType: "json",
-                xhr: function () {
-                    var xhr = new window.XMLHttpRequest();
-                    xhr.upload.addEventListener(
-                        "progress",
-                        function (evt) {
-                            if (evt.lengthComputable) {
-                                if (totalFilesCount > 0) {
-                                    var percentComplete = (evt.loaded / evt.total) * 100;
-                                    $(".circle-progress").show();
-                                    $(".circle-progress")
-                                        .find(".text")
-                                        .text(`Uploading ${totalFilesCount} files`);
-                                    $(".circle-progress")
-                                        .find("#bar")
-                                        .attr("stroke-dashoffset", 100 - percentComplete);
-                                }
-                            }
-                        },
-                        false
-                    );
-                    return xhr;
-                },
-                beforeSend: function () {
-                    $("#msgSendBtn").attr("disabled", true);
-                    $("#loading").fadeIn();
-                },
-                success: function (response) {
-                    $("#msgInputValue").val("");
-                    $(".image-array").empty();
-                    $(".file-array").empty();
+        const imgView = $carousel.owlCarousel({
+            items: 1,
+            loop: false,
+            margin: 0,
+            nav: false,
+            dots: false,
+            mouseDrag: slideCount > 1,
+            touchDrag: slideCount > 1,
+            autoplay: false,
+            smartSpeed: 500,
+            onChanged: function (event) {
+                const currentIndex = event.item.index;
 
-                    let container = document.getElementById("selected-files-container");
-                    let containerImage = document.getElementById("selected-media-container");
-
-                    if (container) container.innerHTML = "";
-                    if (containerImage) containerImage.innerHTML = "";
-
-                    window.selectedFiles = [];
-window.selectedImages = [];
-                    const activeChat = $(".get-ajax-message-view.active");
-                    if (activeChat.length) {
-                        activeChat.trigger("click");
-                    } else if (response.chattingMessages) {
-                        $("#chatting-messages-section").html(response.chattingMessages);
-                    }
-
-                    imageSlider();
-                    toggleVideo();
-                    downloadZip();
-                    namePdf();
-                    manipulateTooltip();
-
-                    setTimeout(() => {
-                        $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
-                        $(".circle-progress").hide();
-                    }, 1000);
-                },
-                complete: function () {
-                    $("#loading").fadeOut();
-                    $(".circle-progress").hide();
-                    $("#msgSendBtn").removeAttr("disabled");
-                    $('[data-toggle="tooltip"]').tooltip();
-
-                    setTimeout(() => {
-                        $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
-                        $(".circle-progress").hide();
-                    }, 1000);
-                },
-                error: function (error) {
-                    if (error.status === 413) {
-                        toastMagic.warning($("#message-media-error").data("text"));
-                    } else {
-                        try {
-                            let errorData = JSON.parse(error.responseText);
-                            toastMagic.warning(errorData.message);
-                        } catch (e) {
-                            toastMagic.error($("#message-media-error").data("text"));
-                        }
-                    }
-
-                    setTimeout(() => {
-                        $(".circle-progress").find(".text").text(`Uploaded ${totalFilesCount} files`);
-                        $(".circle-progress").hide();
-                    }, 1000);
-                },
-            });
-        });
-    }
-
-    function imageSlider() {
-        $(document).ready(function () {
-            $('[data-target^="#imgViewModal"]').on("click", function () {
-                var modalId = $(this).data("target");
-                var $carousel = $(modalId).find(".imgView-slider");
-                var slideCount = $(modalId).find(".imgView-item").length;
-
-                if ($carousel.hasClass("owl-loaded")) {
-                    $carousel.trigger("destroy.owl.carousel").removeClass("owl-loaded");
-                    $carousel.html($carousel.find(".owl-stage-outer").html());
-                }
-
-                var imgView = $carousel.owlCarousel({
-                    items: 1,
-                    loop: false,
-                    margin: 0,
-                    nav: false,
-                    dots: false,
-                    mouseDrag: slideCount > 1,
-                    touchDrag: slideCount > 1,
-                    autoplay: false,
-                    smartSpeed: 500,
-                    onChanged: function (event) {
-                        var currentIndex = event.item.index;
-
-                        if (currentIndex === 0) {
-                            $(modalId).find(".imgView-owl-prev").prop("disabled", true).addClass("disabled");
-                        } else {
-                            $(modalId).find(".imgView-owl-prev").prop("disabled", false).removeClass("disabled");
-                        }
-
-                        if (currentIndex === slideCount - 1) {
-                            $(modalId).find(".imgView-owl-next").prop("disabled", true).addClass("disabled");
-                        } else {
-                            $(modalId).find(".imgView-owl-next").prop("disabled", false).removeClass("disabled");
-                        }
-                    }
-                });
-
-                if (slideCount <= 1) {
-                    $(modalId).find(".imgView-owl-prev, .imgView-owl-next").hide();
+                if (currentIndex === 0) {
+                    $modal.find(".imgView-owl-prev").prop("disabled", true).addClass("disabled");
                 } else {
-                    $(modalId).find(".imgView-owl-prev, .imgView-owl-next").show();
-
-                    $(modalId).find(".imgView-owl-prev").on("click", function () {
-                        imgView.trigger("prev.owl.carousel");
-                    });
-
-                    $(modalId).find(".imgView-owl-next").on("click", function () {
-                        imgView.trigger("next.owl.carousel");
-                    });
+                    $modal.find(".imgView-owl-prev").prop("disabled", false).removeClass("disabled");
                 }
 
-                var index = $(this).data("index");
-                if (slideCount > 1) {
-                    imgView.trigger("to.owl.carousel", [index, 0]);
+                if (currentIndex === slideCount - 1) {
+                    $modal.find(".imgView-owl-next").prop("disabled", true).addClass("disabled");
+                } else {
+                    $modal.find(".imgView-owl-next").prop("disabled", false).removeClass("disabled");
                 }
-
-                $(modalId).find(".imgView-item").each(function () {
-                    var imgSrc = $(this).find("img").attr("src");
-                    if (imgSrc) {
-                        var imgTitle = imgSrc.split("/").pop();
-                        $(this).find(".img-title").text(imgTitle);
-                    }
-                });
-            });
+            },
         });
-    }
 
-    imageSlider();
+        if (slideCount <= 1) {
+            $modal.find(".imgView-owl-prev, .imgView-owl-next").hide();
+        } else {
+            $modal.find(".imgView-owl-prev, .imgView-owl-next").show();
 
-    function toggleVideo() {
-        $(".modal_video-play-btn").on("click", function () {
-            const videoElement = $(this).siblings("video")[0];
+            $modal.find(".imgView-owl-prev").off("click.chatting").on("click.chatting", function () {
+                imgView.trigger("prev.owl.carousel");
+            });
 
-            if (videoElement) {
+            $modal.find(".imgView-owl-next").off("click.chatting").on("click.chatting", function () {
+                imgView.trigger("next.owl.carousel");
+            });
+        }
+
+        const index = $(this).data("index");
+        if (slideCount > 1 && index !== undefined) {
+            imgView.trigger("to.owl.carousel", [index, 0]);
+        }
+
+        $modal.find(".imgView-item").each(function () {
+            const imgSrc = $(this).find("img").attr("src");
+            if (imgSrc) {
+                const imgTitle = imgSrc.split("/").pop();
+                $(this).find(".img-title").text(imgTitle);
+            }
+        });
+    });
+
+    $document.on("click", ".modal_video-play-btn", function () {
+        const videoElement = $(this).siblings("video")[0];
+
+        if (videoElement) {
+            videoElement.controls = true;
+            videoElement.play();
+        }
+
+        $(this).remove();
+    });
+
+    $document.on("play", "video", function () {
+        $(this).siblings(".modal_video-play-btn").remove();
+    });
+
+    $document.on("pause", "video", function () {
+        const videoElement = this;
+
+        if (!$(videoElement).siblings(".modal_video-play-btn").length) {
+            const iconSrc = $("#get-video-preview-icon").data("icon");
+
+            const playButton = $("<button>", {
+                type: "button",
+                class: "btn video-play-btn modal_video-play-btn p-1",
+                html: `<img src="${iconSrc}" alt="Play">`,
+            });
+
+            playButton.insertAfter(videoElement);
+
+            playButton.on("click", function () {
                 videoElement.controls = true;
                 videoElement.play();
-            }
+                $(this).remove();
+            });
+        }
+    });
 
-            $(this).remove();
+    $document.on("click", ".zip-download", function (event) {
+        event.preventDefault();
+
+        const zipWrapper = $(this).closest(".zip-wrapper").find(".zip-images");
+        if (!zipWrapper.length) {
+            return;
+        }
+
+        const zip = new JSZip();
+        const zipFolder = zip.folder("files");
+        const images = zipWrapper.find("img");
+        const videos = zipWrapper.find("video");
+
+        if (images.length === 0 && videos.length === 0) {
+            return;
+        }
+
+        const mediaPromises = [];
+
+        images.each((index, img) => {
+            const imgUrl = $(img).attr("src");
+            const filename = `image_${index + 1}.png`;
+
+            mediaPromises.push(
+                fetch(imgUrl)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch image: ${imgUrl}`);
+                        }
+                        return response.blob();
+                    })
+                    .then((blob) => zipFolder.file(filename, blob))
+            );
         });
 
-        $("video").on("play", function () {
-            $(this).siblings(".modal_video-play-btn").remove();
-        });
+        videos.each((index, video) => {
+            const videoUrl = $(video).find("source").first().attr("src");
+            const filename = `video_${index + 1}.mp4`;
 
-        $("video").on("pause", function () {
-            const videoElement = this;
-            if (!$(videoElement).siblings(".modal_video-play-btn").length) {
-                const iconSrc = $("#get-video-preview-icon").data("icon");
-                const playButton = $("<button>", {
-                    type: "button",
-                    class: "btn video-play-btn modal_video-play-btn p-1",
-                    html: `<img src="${iconSrc}" alt="Play">`,
-                });
-
-                playButton.insertAfter(videoElement);
-
-                playButton.on("click", function () {
-                    videoElement.controls = true;
-                    videoElement.play();
-                    $(this).remove();
-                });
-            }
-        });
-    }
-
-    toggleVideo();
-
-    function downloadZip() {
-        $(".zip-download").on("click", function (event) {
-            event.preventDefault();
-
-            const zipWrapper = $(this).closest(".zip-wrapper").find(".zip-images");
-            if (!zipWrapper.length) {
-                console.error("No .zip-images container found.");
-                return;
-            }
-
-            const zip = new JSZip();
-            const zipFolder = zip.folder("files");
-            const images = zipWrapper.find("img");
-            const videos = zipWrapper.find("video");
-
-            if (images.length === 0 && videos.length === 0) {
-                console.error("No images or videos found to zip.");
-                return;
-            }
-
-            const mediaPromises = [];
-
-            images.each((index, img) => {
-                const imgUrl = $(img).attr("src");
-                const filename = `image_${index + 1}.png`;
-
+            if (videoUrl) {
                 mediaPromises.push(
-                    fetch(imgUrl)
+                    fetch(videoUrl)
                         .then((response) => {
                             if (!response.ok) {
-                                throw new Error(`Failed to fetch image: ${imgUrl}`);
+                                throw new Error(`Failed to fetch video: ${videoUrl}`);
                             }
                             return response.blob();
                         })
                         .then((blob) => zipFolder.file(filename, blob))
-                        .catch((error) => console.error(`Error fetching image (${filename}):`, error))
                 );
-            });
-
-            videos.each((index, video) => {
-                const videoUrl = $(video).find("source").first().attr("src");
-                const filename = `video_${index + 1}.mp4`;
-
-                if (videoUrl) {
-                    mediaPromises.push(
-                        fetch(videoUrl)
-                            .then((response) => {
-                                if (!response.ok) {
-                                    throw new Error(`Failed to fetch video: ${videoUrl}`);
-                                }
-                                return response.blob();
-                            })
-                            .then((blob) => zipFolder.file(filename, blob))
-                            .catch((error) => console.error(`Error fetching video (${filename}):`, error))
-                    );
-                }
-            });
-
-            Promise.all(mediaPromises)
-                .then(() => zip.generateAsync({ type: "blob" }))
-                .then((content) => saveAs(content, "files.zip"))
-                .catch((error) => console.error("Error generating ZIP:", error));
+            }
         });
-    }
 
-    downloadZip();
+        Promise.all(mediaPromises)
+            .then(() => zip.generateAsync({ type: "blob" }))
+            .then((content) => saveAs(content, "files.zip"))
+            .catch(() => {
+            });
+    });
 
     function namePdf() {
         $(".pdf-file-name").each(function () {
@@ -378,9 +510,7 @@ window.selectedImages = [];
 
                 if (namePart.length > maxLength) {
                     const truncatedName =
-                        namePart.slice(0, maxLength - extension.length - 3) +
-                        "..." +
-                        extension;
+                        namePart.slice(0, maxLength - extension.length - 3) + "..." + extension;
                     $(this).text(truncatedName);
                 } else {
                     $(this).text(text);
@@ -389,17 +519,23 @@ window.selectedImages = [];
         });
     }
 
+    $document.on("show.bs.modal", ".imgViewModal", function () {
+        $('[data-toggle="tooltip"], [data-bs-toggle="tooltip"]').tooltip("dispose");
+    });
+
+    $document.on("hidden.bs.modal", ".imgViewModal", function () {
+        initializeTooltips();
+    });
+
+    filterChatList();
     namePdf();
+    initializeTooltips();
 
-    function manipulateTooltip() {
-        $(document).on("show.bs.modal", ".imgViewModal", function () {
-            $('[data-toggle="tooltip"]').tooltip("dispose");
-        });
-
-        $(document).on("hidden.bs.modal", ".imgViewModal", function () {
-            $('[data-toggle="tooltip"]').tooltip();
-        });
+    if (getCurrentUserId()) {
+        startActiveChatPolling();
     }
 
-    manipulateTooltip();
+    $(window).on("beforeunload", function () {
+        stopActiveChatPolling();
+    });
 });

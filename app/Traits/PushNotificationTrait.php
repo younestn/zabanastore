@@ -164,33 +164,24 @@ trait PushNotificationTrait
                     $messageFromType = '';
                 }
 
-                $chatType = '';
-                $chatTargetId = '';
+                $chatMeta = $this->getChattingNotificationMeta(
+    key: $key,
+    type: $type,
+    messageForm: $messageForm
+);
 
-                // الحالة التي تهمك الآن: البائع -> الأدمن
-                if ($key == 'message_from_seller' && $type == 'admin') {
-                    $chatType = 'vendor';
-                    $chatTargetId = (string)($messageForm->id ?? '');
-                }
-
-                // الأدمن -> البائع
-                if ($key == 'message_from_admin' && $type == 'seller') {
-                    $chatType = 'admin';
-                    $chatTargetId = '0';
-                }
-
-                $data = [
-                    'title' => translate('message'),
-                    'description' => $value,
-                    'order_id' => '',
-                    'image' => '',
-                    'type' => 'chatting',
-                    'message_key' => $key,
-                    'notification_key' => $key,
-                    'notification_from' => $messageFromType,
-                    'chat_type' => $chatType,
-                    'chat_target_id' => $chatTargetId,
-                ];
+$data = [
+    'title' => translate('message'),
+    'description' => $value,
+    'order_id' => '',
+    'image' => '',
+    'type' => 'chatting',
+    'message_key' => $key,
+    'notification_key' => $key,
+    'notification_from' => $messageFromType,
+    'chat_type' => $chatMeta['chat_type'],
+    'chat_target_id' => $chatMeta['chat_target_id'],
+];
 
                 $this->sendChattingPushNotificationToDevice($fcm_token, $data);
             }
@@ -520,4 +511,26 @@ trait PushNotificationTrait
         ]);
         return $response->json('access_token') ?? null;
     }
+
+    private function getChattingNotificationMeta(string $key, string $type, object $messageForm): array
+{
+    if ($key === 'message_from_seller' && $type === 'admin') {
+        return [
+            'chat_type' => 'vendor',
+            'chat_target_id' => (string)($messageForm->id ?? ''),
+        ];
+    }
+
+    if ($key === 'message_from_admin' && $type === 'seller') {
+        return [
+            'chat_type' => 'admin',
+            'chat_target_id' => '0',
+        ];
+    }
+
+    return [
+        'chat_type' => '',
+        'chat_target_id' => '',
+    ];
+}
 }

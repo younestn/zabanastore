@@ -255,7 +255,12 @@
                         <div
                             class="card-body p-3 overflow-y-auto height-220 flex-grow-1 msg_history d-flex flex-column-reverse"
                             id="chatting-messages-section">
-                            @include('vendor-views.chatting.messages', ['lastChatUser'=>$lastChatUser, 'chattingMessages'=>$chattingMessages])
+
+@include('vendor-views.chatting.messages', [
+    'lastChatUser' => $lastChatUser,
+    'userType' => $userType,
+    'chattingMessages' => $chattingMessages
+])
                         </div>
 
                         <div class="type_msg">

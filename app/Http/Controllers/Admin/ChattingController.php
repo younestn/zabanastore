@@ -52,7 +52,7 @@ public function index(?Request $request, string $type = null): View|Collection|L
      * @param string|array|null $type
      * @return View|Collection|LengthAwarePaginator|callable|RedirectResponse|null
      */
-    public function getListView(string $type = null): View
+public function getListView(string $type = null): View
 {
     $shop = null;
     $adminId = 0;
@@ -66,12 +66,24 @@ public function index(?Request $request, string $type = null): View|Collection|L
             dataLimit: 'all'
         )->unique('delivery_man_id');
 
-        if (count($allChattingUsers) > 0) {
-            $lastChatUser = $allChattingUsers[0]->deliveryMan;
-            $this->chattingRepo->updateAllWhere(
-                params: ['admin_id' => $adminId, 'delivery_man_id' => $lastChatUser['id']],
-                data: ['seen_by_admin' => 1]
-            );
+        $requestedDeliveryManId = request()->get('delivery_man_id');
+        $requestedDeliveryMan = null;
+
+        if ($requestedDeliveryManId) {
+            $requestedDeliveryMan = $this->deliveryManRepo->getFirstWhere(params: [
+                'id' => $requestedDeliveryManId,
+            ]);
+        }
+
+        if (count($allChattingUsers) > 0 || $requestedDeliveryMan) {
+            $lastChatUser = $requestedDeliveryMan ?: $allChattingUsers[0]->deliveryMan;
+
+            if ($lastChatUser) {
+                $this->chattingRepo->updateAllWhere(
+                    params: ['admin_id' => $adminId, 'delivery_man_id' => $lastChatUser['id']],
+                    data: ['seen_by_admin' => 1]
+                );
+            }
 
             $deliveryMenUnreadMessagesQueryParams = [
                 'admin_id' => $adminId,
@@ -84,7 +96,7 @@ public function index(?Request $request, string $type = null): View|Collection|L
 
             $chattingMessages = $this->chattingRepo->getListWhereNotNull(
                 orderBy: ['id' => 'DESC'],
-                filters: ['admin_id' => $adminId, 'delivery_man_id' => $lastChatUser->id],
+                filters: ['admin_id' => $adminId, 'delivery_man_id' => $lastChatUser?->id],
                 whereNotNull: ['delivery_man_id', 'admin_id'],
                 relations: ['deliveryMan'],
                 dataLimit: 'all'
@@ -107,8 +119,18 @@ public function index(?Request $request, string $type = null): View|Collection|L
             dataLimit: 'all'
         )->unique('user_id');
 
-        if (count($allChattingUsers) > 0) {
-            $lastChatUser = $allChattingUsers[0]->customer;
+        $requestedCustomerId = request()->get('customer_id');
+        $requestedCustomer = null;
+
+        if ($requestedCustomerId) {
+            $requestedCustomer = $this->customerRepo->getFirstWhere(params: [
+                'id' => $requestedCustomerId,
+            ]);
+        }
+
+        if (count($allChattingUsers) > 0 || $requestedCustomer) {
+            $lastChatUser = $requestedCustomer ?: $allChattingUsers[0]->customer;
+
             if ($lastChatUser) {
                 $this->chattingRepo->updateAllWhere(
                     params: ['admin_id' => $adminId, 'user_id' => $lastChatUser['id']],
@@ -163,10 +185,12 @@ public function index(?Request $request, string $type = null): View|Collection|L
         if (count($allChattingUsers) > 0 || $requestedVendor) {
             $lastChatUser = $requestedVendor ?: $allChattingUsers[0]->seller;
 
-            $this->chattingRepo->updateAllWhere(
-                params: ['admin_id' => $adminId, 'seller_id' => $lastChatUser['id']],
-                data: ['seen_by_admin' => 1]
-            );
+            if ($lastChatUser) {
+                $this->chattingRepo->updateAllWhere(
+                    params: ['admin_id' => $adminId, 'seller_id' => $lastChatUser['id']],
+                    data: ['seen_by_admin' => 1]
+                );
+            }
 
             $vendorsUnreadMessagesQueryParams = [
                 'admin_id' => $adminId,
@@ -179,7 +203,7 @@ public function index(?Request $request, string $type = null): View|Collection|L
 
             $chattingMessages = $this->chattingRepo->getListWhereNotNull(
                 orderBy: ['id' => 'DESC'],
-                filters: ['admin_id' => $adminId, 'seller_id' => $lastChatUser->id],
+                filters: ['admin_id' => $adminId, 'seller_id' => $lastChatUser?->id],
                 whereNotNull: ['seller_id', 'admin_id'],
                 relations: ['seller.shop'],
                 dataLimit: 'all'
@@ -209,6 +233,11 @@ public function index(?Request $request, string $type = null): View|Collection|L
 
     if ($request->has(key: 'delivery_man_id')) {
         $getUser = $this->deliveryManRepo->getFirstWhere(params: ['id' => $request['delivery_man_id']]);
+
+        if (!$getUser) {
+            return response()->json(['message' => 'Delivery man not found'], 404);
+        }
+
         $this->chattingRepo->updateAllWhere(
             params: ['admin_id' => $adminId, 'delivery_man_id' => $request['delivery_man_id']],
             data: ['seen_by_admin' => 1]
@@ -220,9 +249,15 @@ public function index(?Request $request, string $type = null): View|Collection|L
             whereNotNull: ['delivery_man_id', 'admin_id'],
             dataLimit: 'all'
         );
+
         $data = self::getRenderMessagesView(user: $getUser, message: $chattingMessages, type: 'delivery_man');
     } elseif ($request->has(key: 'user_id')) {
         $getUser = $this->customerRepo->getFirstWhere(params: ['id' => $request['user_id']]);
+
+        if (!$getUser) {
+            return response()->json(['message' => 'Customer not found'], 404);
+        }
+
         $this->chattingRepo->updateAllWhere(
             params: ['admin_id' => $adminId, 'user_id' => $request['user_id']],
             data: ['seen_by_admin' => 1]
@@ -234,9 +269,14 @@ public function index(?Request $request, string $type = null): View|Collection|L
             whereNotNull: ['user_id', 'admin_id'],
             dataLimit: 'all'
         );
+
         $data = self::getRenderMessagesView(user: $getUser, message: $chattingMessages, type: 'customer');
     } elseif ($request->has(key: 'seller_id')) {
         $getUser = $this->vendorRepo->getFirstWhere(params: ['id' => $request['seller_id']]);
+
+        if (!$getUser) {
+            return response()->json(['message' => 'Vendor not found'], 404);
+        }
 
         $this->chattingRepo->updateAllWhere(
             params: ['admin_id' => $adminId, 'seller_id' => $request['seller_id']],
@@ -280,7 +320,10 @@ public function index(?Request $request, string $type = null): View|Collection|L
         );
 
         $deliveryMan = $this->deliveryManRepo->getFirstWhere(params: ['id' => $request['delivery_man_id']]);
-        event(new ChattingEvent(key: 'message_from_admin', type: 'delivery_man', userData: $deliveryMan, messageForm: $messageForm));
+
+        if ($deliveryMan) {
+            event(new ChattingEvent(key: 'message_from_admin', type: 'delivery_man', userData: $deliveryMan, messageForm: $messageForm));
+        }
 
         $chattingMessages = $this->chattingRepo->getListWhereNotNull(
             orderBy: ['id' => 'DESC'],
@@ -288,6 +331,7 @@ public function index(?Request $request, string $type = null): View|Collection|L
             whereNotNull: ['delivery_man_id', 'admin_id'],
             dataLimit: 'all'
         );
+
         $data = self::getRenderMessagesView(user: $deliveryMan, message: $chattingMessages, type: 'delivery_man');
     } elseif ($request->has(key: 'user_id')) {
         $this->chattingRepo->add(
@@ -298,7 +342,10 @@ public function index(?Request $request, string $type = null): View|Collection|L
         );
 
         $customer = $this->customerRepo->getFirstWhere(params: ['id' => $request['user_id']]);
-        event(new ChattingEvent(key: 'message_from_admin', type: 'customer', userData: $customer, messageForm: $messageForm));
+
+        if ($customer) {
+            event(new ChattingEvent(key: 'message_from_admin', type: 'customer', userData: $customer, messageForm: $messageForm));
+        }
 
         $chattingMessages = $this->chattingRepo->getListWhereNotNull(
             orderBy: ['id' => 'DESC'],
@@ -306,9 +353,15 @@ public function index(?Request $request, string $type = null): View|Collection|L
             whereNotNull: ['user_id', 'admin_id'],
             dataLimit: 'all'
         );
+
         $data = self::getRenderMessagesView(user: $customer, message: $chattingMessages, type: 'customer');
     } elseif ($request->has(key: 'seller_id')) {
         $vendor = $this->vendorRepo->getFirstWhere(params: ['id' => $request['seller_id']]);
+
+        if (!$vendor) {
+            return response()->json(['message' => 'Vendor not found'], 404);
+        }
+
         $vendorShop = $this->shopRepo->getFirstWhere(params: ['seller_id' => $request['seller_id']]);
 
         $this->chattingRepo->add(
@@ -430,25 +483,37 @@ public function index(?Request $request, string $type = null): View|Collection|L
         data: ['seen_notification' => 1]
     );
 
-    $url = route('admin.messages.index', ['type' => 'customer']);
-
-    if ($latestChat) {
-        if (!empty($latestChat->seller_id)) {
-            $url = route('admin.messages.index', [
-                'type' => 'vendor',
-                'vendor_id' => $latestChat->seller_id,
-            ]);
-        } elseif (!empty($latestChat->delivery_man_id)) {
-            $url = route('admin.messages.index', ['type' => 'delivery-man']);
-        } elseif (!empty($latestChat->user_id)) {
-            $url = route('admin.messages.index', ['type' => 'customer']);
-        }
-    }
-
     return response()->json([
         'newMessagesExist' => $chatting,
         'message' => $chatting > 1 ? $chatting . ' ' . translate('New_Message') : translate('New_Message'),
-        'url' => $url,
+        'url' => $this->buildAdminMessageNotificationUrl($latestChat),
     ]);
+}
+private function buildAdminMessageNotificationUrl(object|null $latestChat): string
+{
+    if ($latestChat) {
+        if (!empty($latestChat->seller_id)) {
+            return route('admin.messages.index', [
+                'type' => 'vendor',
+                'vendor_id' => (int)$latestChat->seller_id,
+            ]);
+        }
+
+        if (!empty($latestChat->delivery_man_id)) {
+            return route('admin.messages.index', [
+                'type' => 'delivery-man',
+                'delivery_man_id' => (int)$latestChat->delivery_man_id,
+            ]);
+        }
+
+        if (!empty($latestChat->user_id)) {
+            return route('admin.messages.index', [
+                'type' => 'customer',
+                'customer_id' => (int)$latestChat->user_id,
+            ]);
+        }
+    }
+
+    return route('admin.messages.index', ['type' => 'customer']);
 }
 }

@@ -3,22 +3,31 @@ $(document).ready(function () {
     let getChattingNewNotificationCheckRoute = $('#getChattingNewNotificationCheckRoute').data('route');
     let chattingNewNotificationAlert = $('#chatting-new-notification-check');
     let chattingNewNotificationAlertMsg = $('#chatting-new-notification-check-message');
+    let chattingNewNotificationLink = $('#chatting-new-notification-link');
+
     setInterval(function () {
         $.get({
             url: getChattingNewNotificationCheckRoute,
             dataType: 'json',
             success: function (response) {
-                if (response.newMessagesExist !== 0 && response.message) {
-                    chattingNewNotificationAlertMsg.html(response.message)
+                let newMessagesExist = Number(response?.newMessagesExist || 0);
+
+                if (newMessagesExist > 0 && response?.message) {
+                    chattingNewNotificationAlertMsg.html(response.message);
+
+                    if (response.url) {
+                        chattingNewNotificationLink.attr('href', response.url);
+                    }
+
                     chattingNewNotificationAlert.addClass('active');
                     playAudio();
+
                     setTimeout(function () {
-                        chattingNewNotificationAlert.removeClass('active')
+                        chattingNewNotificationAlert.removeClass('active');
                     }, 5000);
                 }
             },
         });
-
     }, 20000);
 
     // ---- Text Collapse

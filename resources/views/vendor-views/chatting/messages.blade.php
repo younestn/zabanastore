@@ -22,10 +22,16 @@
     @if ($message->sent_by_customer || $message->sent_by_delivery_man || $message->sent_by_admin)
         <div class="incoming_msg d-flex align-items-end gap-2 my-2">
             <div class="">
-                <img class="avatar-img user-avatar-image border inbox-user-avatar-25" id="profile_image" width="40"
-                     height="40"
-                     src="{{ getStorageImages(path: $lastChatUser->image_full_url,type: 'backend-profile')}}"
-                     alt="Image Description">
+                <img class="avatar-img user-avatar-image border inbox-user-avatar-25"
+     id="profile_image"
+     width="40"
+     height="40"
+     src="{{
+        $userType == 'admin'
+            ? getStorageImages(path: getWebConfig(name: 'company_fav_icon'), type: 'backend-logo')
+            : getStorageImages(path: $lastChatUser->image_full_url, type: 'backend-profile')
+     }}"
+     alt="Image Description">
             </div>
             <div class="received_msg d-flex flex-column align-items-end" data-toggle="tooltip"
                  data-custom-class="chatting-time min-w-0"

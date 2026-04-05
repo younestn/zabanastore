@@ -52,46 +52,74 @@ class FileManagerLogic
     }
 
     public static function getFileSize($path): string
-    {
-        if (!is_null($path)) {
-            try {
-                $headers = get_headers($path, 1);
-                $decimals = 2;
-                $bytes = isset($headers['Content-Length']) ? $headers['Content-Length'] : $headers['content-length'];
-                $size = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-                $factor = floor((strlen($bytes) - 1) / 3);
-                return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . @$size[$factor];
-            } catch(\Exception $exception) {
-            }
-
-            try {
-                $ch = curl_init($path);
-                curl_setopt($ch, CURLOPT_NOBODY, true);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HEADER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects if necessary
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Ignore SSL verification if needed
-                curl_exec($ch);
-
-                $contentLength = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
-                curl_close($ch);
-
-                if ($contentLength <= 0) {
-                    return 'Unknown Size';
-                }
-
-                $decimals = 2;
-                $sizeUnits = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-                $factor = floor((strlen($contentLength) - 1) / 3);
-
-                return sprintf("%.{$decimals}f", $contentLength / (1024 ** $factor)) . ' ' . $sizeUnits[$factor];
-            } catch (\Exception $exception) {
-                return 'Error: ' . $exception->getMessage();
-            }
-        }
+{
+    if (empty($path) || !is_string($path)) {
         return 'Invalid File';
     }
 
+    try {
+        $parsedPath = parse_url($path, PHP_URL_PATH);
+        $relativePath = ltrim((string) $parsedPath, '/');
+
+        $localCandidates = [];
+
+        if (is_file($path)) {
+            $localCandidates[] = $path;
+        }
+
+        if (str_starts_with($relativePath, 'storage/')) {
+            $storageRelative = ltrim(substr($relativePath, strlen('storage/')), '/');
+
+            $localCandidates[] = public_path($relativePath);
+            $localCandidates[] = storage_path('app/public/' . $storageRelative);
+        }
+
+        foreach ($localCandidates as $localFile) {
+            if ($localFile && is_file($localFile)) {
+                $bytes = filesize($localFile);
+
+                if ($bytes !== false) {
+                    return self::formatBytes($bytes);
+                }
+            }
+        }
+    } catch (\Throwable $exception) {
+    }
+
+    try {
+        $headers = get_headers($path, 1);
+        $decimals = 2;
+        $bytes = $headers['Content-Length'] ?? $headers['content-length'] ?? null;
+
+        if (!empty($bytes)) {
+            $size = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            $factor = floor((strlen((string) $bytes) - 1) / 3);
+            return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . @$size[$factor];
+        }
+    } catch (\Throwable $exception) {
+    }
+
+    try {
+        $ch = curl_init($path);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_exec($ch);
+
+        $contentLength = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+        curl_close($ch);
+
+        if ($contentLength > 0) {
+            return self::formatBytes((int) $contentLength);
+        }
+
+        return 'Unknown Size';
+    } catch (\Throwable $exception) {
+        return 'Unknown Size';
+    }
+}
     public static function formatBytes($bytes, $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];

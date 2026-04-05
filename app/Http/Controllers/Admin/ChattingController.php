@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Admin;
-
+use App\Models\Chatting as ChattingModel;
 use App\Contracts\Repositories\VendorRepositoryInterface;
 use App\Contracts\Repositories\ChattingRepositoryInterface;
 use App\Contracts\Repositories\CustomerRepositoryInterface;
@@ -164,13 +164,19 @@ public function getListView(string $type = null): View
             ]);
         }
     } elseif ($type == 'vendor') {
-        $allChattingUsers = $this->chattingRepo->getListWhereNotNull(
-            orderBy: ['id' => 'DESC'],
-            filters: ['admin_id' => $adminId],
-            whereNotNull: ['seller_id', 'admin_id'],
-            relations: ['seller.shop'],
-            dataLimit: 'all'
-        )->unique('seller_id');
+        $allChattingUsers = ChattingModel::query()
+    ->with(['seller.shop'])
+    ->where('admin_id', $adminId)
+    ->whereNotNull('seller_id')
+    ->whereIn('id', function ($query) use ($adminId) {
+        $query->from('chattings')
+            ->selectRaw('MAX(id)')
+            ->where('admin_id', $adminId)
+            ->whereNotNull('seller_id')
+            ->groupBy('seller_id');
+    })
+    ->orderByDesc('id')
+    ->get();
 
         $requestedVendorId = request()->get('vendor_id');
         $requestedVendor = null;

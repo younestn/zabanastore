@@ -76,30 +76,29 @@
                                                 $downloadPath = $attachment['path'];
                                             @endphp
 
-                                            <div class="d-flex">
-                                                <a class="text--title" href="{{ $downloadPath }}" target="_blank">
-                                                    <div class="uploaded-file-item">
-                                                        <div class="d-flex align-items-center justify-content-between gap-2">
-                                                            <div class="d-flex gap-2 align-items-center">
-                                                                <img src="{{ dynamicAsset('public/assets/back-end/img/' . $icon . '.png') }}"
-                                                                     class="file-icon" alt="">
-                                                                <div class="upload-file-item-content">
-                                                                    <div class="pdf-file-name">
-                                                                        {{ $attachment['key'] }}
-                                                                    </div>
-                                                                    <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
-                                                                </div>
-                                                            </div>
+                                           <div class="d-flex">
+    <a class="text--title" href="{{ $downloadPath }}" target="_blank">
+        <div class="uploaded-file-item">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <img src="{{ dynamicAsset('public/assets/back-end/img/' . $icon . '.png') }}"
+                         class="file-icon" alt="">
+                    <div class="upload-file-item-content">
+                        <div class="pdf-file-name">
+                            {{ $attachment['key'] }}
+                        </div>
+                        <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
+                    </div>
+                </div>
 
-                                                            <a class="btn btn--download icon-btn bg-white d-flex justify-content-center align-items-center"
-                                                               href="{{ $attachment['path'] ?? '' }}"
-                                                               download>
-                                                                <i class="fi fi-rr-download"></i>
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            </div>
+                <span class="btn btn--download icon-btn bg-white d-flex justify-content-center align-items-center">
+                    <i class="fi fi-rr-download"></i>
+                </span>
+            </div>
+        </div>
+    </a>
+</div>
+
                                         @endforeach
                                     </div>
                                 </div>
@@ -286,29 +285,27 @@
                                         @endphp
 
                                         <div class="d-flex">
-                                            <a class="text--title" href="{{ $downloadPath }}" target="_blank">
-                                                <div class="uploaded-file-item">
-                                                    <div class="d-flex align-items-center justify-content-between gap-2">
-                                                        <div class="d-flex gap-2 align-items-center">
-                                                            <img src="{{ dynamicAsset('public/assets/back-end/img/' . $icon . '.png') }}"
-                                                                 class="file-icon" alt="">
-                                                            <div class="upload-file-item-content">
-                                                                <div class="pdf-file-name">
-                                                                    {{ $attachment['key'] }}
-                                                                </div>
-                                                                <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
-                                                            </div>
-                                                        </div>
+    <a class="text--title" href="{{ $downloadPath }}" target="_blank">
+        <div class="uploaded-file-item">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <img src="{{ dynamicAsset('public/assets/back-end/img/' . $icon . '.png') }}"
+                         class="file-icon" alt="">
+                    <div class="upload-file-item-content">
+                        <div class="pdf-file-name">
+                            {{ $attachment['key'] }}
+                        </div>
+                        <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
+                    </div>
+                </div>
 
-                                                        <a class="btn btn--download icon-btn bg-white d-flex justify-content-center align-items-center"
-                                                           href="{{ $attachment['path'] ?? '' }}"
-                                                           download>
-                                                            <i class="fi fi-rr-download"></i>
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            </a>
-                                        </div>
+                <span class="btn btn--download icon-btn bg-white d-flex justify-content-center align-items-center">
+                    <i class="fi fi-rr-download"></i>
+                </span>
+            </div>
+        </div>
+    </a>
+</div>
                                     @endforeach
                                 </div>
                             </div>

@@ -146,7 +146,7 @@
                 </div>
             </div>
 
-        @elseif($chatting->admin_id === 0)
+        @elseif((int) $chatting->admin_id === 0)
             <div class="list_filter">
                 <div class="chat_list p-3 d-flex gap-2 {{ $key == 0 ? 'bg-soft-secondary' : '' }} get-ajax-message-view active"
                      data-user-id="0">

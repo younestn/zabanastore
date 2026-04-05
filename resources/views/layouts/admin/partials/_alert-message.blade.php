@@ -1,7 +1,7 @@
 <div class="alert--container active">
-    <a id="chatting-new-notification-link" href="javascript:"></a>
-        <div class="alert alert--message-2 alert-dismissible fade show" id="chatting-new-notification-check"
-             role="alert">
+    <a id="chatting-new-notification-link" href="javascript:">
+    <div class="alert alert--message-2 alert-dismissible fade show" id="chatting-new-notification-check"
+         role="alert">
             <img width="28" src="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/chatting-notification.svg') }}"
                  alt="">
             <div class="flex-grow-1">

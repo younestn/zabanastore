@@ -1,16 +1,13 @@
-@php
-    use App\Enums\GlobalConstant;
-    use App\Utils\FileManagerLogic;
-@endphp
-
 @foreach($chattingMessages as $key => $message)
-        <?php
-        $documentExtensions = GlobalConstant::DOCUMENT_EXTENSION;
+    @php
+        $documentExtensions = \App\Enums\GlobalConstant::DOCUMENT_EXTENSION;
         $documentFiles = [];
         $otherFiles = [];
+
         if (!empty($message->attachment_full_url)) {
             foreach ($message->attachment_full_url as $attachment) {
                 $extension = strrchr($attachment['key'], '.');
+
                 if (in_array($extension, $documentExtensions)) {
                     $documentFiles[] = $attachment;
                 } else {
@@ -18,7 +15,7 @@
                 }
             }
         }
-        ?>
+    @endphp
     @if ($message->sent_by_customer || $message->sent_by_delivery_man || $message->sent_by_admin)
         <div class="incoming_msg d-flex align-items-end gap-2 my-2">
             <div class="">
@@ -71,14 +68,13 @@
                                                                     <div class="pdf-file-name">
                                                                         {{($attachment['key'])}}
                                                                     </div>
-                                                                    <small>{{FileManagerLogic::getFileSize($downloadPath)}}</small>
+                                                                    <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
                                                                 </div>
                                                             </div>
                                                             <a
-                                                                class="btn btn--download d-flex justify-content-center align-items-center"
-                                                                href="{{ $attachment['path'] ?? '' }}"
-                                                                download>
-                                                                <i class="tio-download-to"></i>
+                                                                 <span class="btn btn--download d-flex justify-content-center align-items-center">
+                <i class="tio-download-to"></i>
+            </span>
                                                             </a>
                                                         </div>
                                                     </div>
@@ -109,9 +105,9 @@
                                                    data-type="video"
                                                    href="javascript:"
                                                    download
-                                                   class="position-relative {{ !in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? 'aspect-1 overflow-hidden d-block border rounded ' : '' }}"
+                                                   class="position-relative {{ !in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? 'aspect-1 overflow-hidden d-block border rounded ' : '' }}"
                                                    data-index="{{ $secondIndex }}">
-                                                    @if(in_array($extension, GlobalConstant::VIDEO_EXTENSION))
+                                                    @if(in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION))
                                                         <video class="rounded video-element" width="100" height="60"
                                                                preload="metadata">
                                                             <source src="{{ $attachment['path'] ?? '' }}"
@@ -158,7 +154,7 @@
                                                             <div class="imgView-item">
                                                                 <div
                                                                     class="d-flex justify-content-between align-items-end">
-                                                                    <a href="{{ in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? $file['path'] : getStorageImages(path: $file, type: 'backend-basic') }}"
+                                                                    <a href="{{ in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? $file['path'] : getStorageImages(path: $file, type: 'backend-basic') }}"
                                                                        class="d-flex align-items-center gap-2 mb-10px"
                                                                        download>
                                                                         <div
@@ -167,7 +163,7 @@
                                                                             <i class="tio-download-to"></i>
                                                                         </div>
                                                                         <h6 class="text-white text-underline mb-0">
-                                                                            Download {{ in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? 'Video' : 'Image' }}</h6>
+                                                                            Download {{ in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? 'Video' : 'Image' }}</h6>
                                                                     </a>
                                                                     <button type="button"
                                                                             class="btn btn-close p-1 border-0"
@@ -178,7 +174,7 @@
                                                                 </div>
                                                                 <div class="image-wrapper">
                                                                     <div class="position-relative">
-                                                                        @if(in_array($extension, GlobalConstant::VIDEO_EXTENSION))
+                                                                        @if(in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION))
                                                                             <video
                                                                                 class="rounded video-element"
                                                                                 width="450"
@@ -269,31 +265,27 @@
                                         @php($icon = in_array($extension,['.pdf','.doc','docx','.txt']) ? 'word-icon': 'default-icon')
                                         @php($downloadPath = $attachment['path'])
                                         <div class="d-flex">
-                                            <a class="text--title" href="{{$downloadPath}}" target="_blank">
-                                                <div class="uploaded-file-item">
-                                                    <div
-                                                        class="d-flex align-items-center justify-content-between gap-2">
-                                                        <div class="d-flex gap-2 align-items-center">
-                                                            <img
-                                                                src="{{dynamicAsset('public/assets/back-end/img/'.$icon.'.png')}}"
-                                                                class="file-icon" alt="">
-                                                            <div class="upload-file-item-content">
-                                                                <div class="pdf-file-name">
-                                                                    {{($attachment['key'])}}
-                                                                </div>
-                                                                <small>{{FileManagerLogic::getFileSize($downloadPath)}}</small>
-                                                            </div>
-                                                        </div>
-                                                        <a
-                                                            class="btn btn--download d-flex justify-content-center align-items-center"
-                                                            href="{{ $attachment['path'] ?? '' }}"
-                                                            download>
-                                                            <i class="tio-download-to"></i>
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            </a>
-                                        </div>
+    <a class="text--title" href="{{$downloadPath}}" target="_blank">
+        <div class="uploaded-file-item">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <img
+                        src="{{dynamicAsset('public/assets/back-end/img/'.$icon.'.png')}}"
+                        class="file-icon" alt="">
+                    <div class="upload-file-item-content">
+                        <div class="pdf-file-name">
+                            {{($attachment['key'])}}
+                        </div>
+                        <small>{{ \App\Utils\FileManagerLogic::getFileSize($downloadPath) }}</small>
+                    </div>
+                </div>
+                <span class="btn btn--download d-flex justify-content-center align-items-center">
+                    <i class="tio-download-to"></i>
+                </span>
+            </div>
+        </div>
+    </a>
+</div>
                                     @endforeach
                                 </div>
                             </div>
@@ -322,9 +314,9 @@
                                                data-type="video"
                                                href="javascript:"
                                                download
-                                               class="position-relative {{ !in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? 'aspect-1 overflow-hidden d-block border rounded ' : '' }}"
+                                               class="position-relative {{ !in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? 'aspect-1 overflow-hidden d-block border rounded ' : '' }}"
                                                data-index="{{ $secondIndex }}">
-                                                @if(in_array($extension, GlobalConstant::VIDEO_EXTENSION))
+                                                @if(in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION))
                                                     <video class="rounded video-element" width="100" height="60"
                                                            preload="metadata">
                                                         <source src="{{ $attachment['path'] ?? '' }}"
@@ -366,7 +358,7 @@
                                                         <div class="imgView-item">
                                                             <div
                                                                 class="d-flex justify-content-between align-items-end">
-                                                                <a href="{{ in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? $file['path'] : getStorageImages(path: $file, type: 'backend-basic') }}"
+                                                                <a href="{{ in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? $file['path'] : getStorageImages(path: $file, type: 'backend-basic') }}"
                                                                    class="d-flex align-items-center gap-2 mb-10px"
                                                                    download>
                                                                     <div
@@ -375,7 +367,7 @@
                                                                         <i class="tio-download-to"></i>
                                                                     </div>
                                                                     <h6 class="text-white text-underline mb-0">
-                                                                        Download {{ in_array($extension, GlobalConstant::VIDEO_EXTENSION) ? 'Video' : 'Image' }}</h6>
+                                                                        Download {{ in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION) ? 'Video' : 'Image' }}</h6>
                                                                 </a>
                                                                 <button type="button"
                                                                         class="btn btn-close p-1 border-0"
@@ -386,7 +378,7 @@
                                                             </div>
                                                             <div class="image-wrapper">
                                                                 <div class="position-relative">
-                                                                    @if(in_array($extension, GlobalConstant::VIDEO_EXTENSION))
+                                                                    @if(in_array($extension, \App\Enums\GlobalConstant::VIDEO_EXTENSION))
                                                                         <video
                                                                             class="rounded video-element"
                                                                             width="450"
@@ -452,7 +444,7 @@
             </div>
         </div>
     @endif
-@endForeach
+@endforeach
 
 @push('script')
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/js-zip/jszip.min.js')}}"></script>

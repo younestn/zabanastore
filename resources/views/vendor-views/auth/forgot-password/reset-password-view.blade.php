@@ -125,9 +125,9 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-lg btn-block btn--primary forget-password-form">
-                            {{ translate('reset_password')}}
-                        </button>
+                        <button type="button" class="btn btn-lg btn-block btn--primary forget-password-form">
+    {{ translate('reset_password')}}
+</button>
                     </form>
                 </div>
 

@@ -456,4 +456,5 @@ return [
 	"if_sales_commission_is_enabled_here_the_this_commission_will_be_applied" => "If sales commission is enabled here the this commission will be applied",
 	"if_sales_commission_is_disabled_here_the_system_default_commission_will_be_applied" => "If sales commission is disabled here the system default commission will be applied",
 	"No_admin_Found" => "No admin Found",
+	"otp_has_been_sent_to_your_email_address" => "Otp has been sent to your email address",
 ];

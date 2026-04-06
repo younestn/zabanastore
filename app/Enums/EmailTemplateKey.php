@@ -36,16 +36,16 @@ enum EmailTemplateKey
         EmailTemplateKey::ORDER_RECEIVED,
     ];
     const CUSTOMER_EMAIL_LIST = [
-        EmailTemplateKey::ORDER_PLACE,
-        // EmailTemplateKey::FORGET_PASSWORD,
-        EmailTemplateKey::REGISTRATION_VERIFICATION,
-        EmailTemplateKey::REGISTRATION_FROM_POS,
-        EmailTemplateKey::ACCOUNT_BLOCK ,
-        EmailTemplateKey::ACCOUNT_UNBLOCK ,
-        EmailTemplateKey::DIGITAL_PRODUCT_DOWNLOAD,
-        EmailTemplateKey::DIGITAL_PRODUCT_OTP,
-        EmailTemplateKey::ADD_FUND_TO_WALLET ,
-    ];
+    EmailTemplateKey::ORDER_PLACE,
+    EmailTemplateKey::FORGET_PASSWORD,
+    EmailTemplateKey::REGISTRATION_VERIFICATION,
+    EmailTemplateKey::REGISTRATION_FROM_POS,
+    EmailTemplateKey::ACCOUNT_BLOCK,
+    EmailTemplateKey::ACCOUNT_UNBLOCK,
+    EmailTemplateKey::DIGITAL_PRODUCT_DOWNLOAD,
+    EmailTemplateKey::DIGITAL_PRODUCT_OTP,
+    EmailTemplateKey::ADD_FUND_TO_WALLET,
+];
     const DELIVERY_MAN_EMAIL_LIST = [
         EmailTemplateKey::RESET_PASSWORD_VERIFICATION ,
     ];

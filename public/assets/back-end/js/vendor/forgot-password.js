@@ -10,7 +10,9 @@ $(document).on('ready', function () {
         $.HSCore.components.HSValidation.init($(this));
     });
 });
-$('.forget-password-form').on('click',function (){
+$('.forget-password-form').on('click', function (e) {
+    e.preventDefault();
+    $(this).prop('disabled', true);
     $.ajaxSetup({
         headers: {
             'X-XSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -40,8 +42,9 @@ $('.forget-password-form').on('click',function (){
                 toastMagic.success(data.success)
             }
         },complete: function () {
-            $('#loading').fadeOut();
-        },
+    $('#loading').fadeOut();
+    $('.forget-password-form').prop('disabled', false);
+},
     })
 })
 var backgroundImage = $("[data-bg-img]");

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Class YourModel
@@ -146,17 +147,50 @@ class Shop extends Model
     }
 
     protected static function boot(): void
-    {
-        parent::boot();
+{
+    parent::boot();
 
-        static::saved(function ($model) {
-            cacheRemoveByType(type: 'shops');
-            cacheRemoveByType(type: 'in_house_shop');
-        });
+    static::saving(function ($model) {
+        $reservedLocaleSlugs = ['en', 'ar', 'fr', 'es', 'de', 'it', 'pt', 'tr', 'ru'];
 
-        static::deleted(function ($model) {
-            cacheRemoveByType(type: 'shops');
-            cacheRemoveByType(type: 'in_house_shop');
-        });
-    }
+        $currentSlug = strtolower(trim((string) $model->slug));
+
+        $slugIsInvalid =
+            $currentSlug === '' ||
+            in_array($currentSlug, $reservedLocaleSlugs) ||
+            !preg_match('/[a-z0-9]/i', $currentSlug);
+
+        if ($slugIsInvalid) {
+            $baseSlug = Str::slug((string) $model->name, '-');
+
+            if (!$baseSlug || in_array($baseSlug, $reservedLocaleSlugs)) {
+                $baseSlug = 'shop';
+            }
+
+            $newSlug = $baseSlug . '-' . ($model->id ?: strtolower(Str::random(6)));
+
+            while (
+                static::where('slug', $newSlug)
+                    ->when($model->id, function ($query) use ($model) {
+                        return $query->where('id', '!=', $model->id);
+                    })
+                    ->exists()
+            ) {
+                $newSlug = $baseSlug . '-' . strtolower(Str::random(6));
+            }
+
+            $model->slug = $newSlug;
+        }
+    });
+
+    static::saved(function ($model) {
+        cacheRemoveByType(type: 'shops');
+        cacheRemoveByType(type: 'in_house_shop');
+    });
+
+    static::deleted(function ($model) {
+        cacheRemoveByType(type: 'shops');
+        cacheRemoveByType(type: 'in_house_shop');
+    });
+}
 }

@@ -74,7 +74,12 @@ class ForgotPasswordController extends BaseController
         session()->put(SessionKey::FORGOT_PASSWORD_IDENTIFY, $request['identity']);
         $verificationBy = getWebConfig('vendor_forgot_password_method') ?? 'phone';
 
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_vendor_forgot_password', action: 'vendor_forgot_password', firebase: true);
+        $result = RecaptchaService::verificationStatus(
+    request: $request,
+    session: 'default_recaptcha_id_vendor_forgot_password',
+    action: 'vendor_forgot_password',
+    firebase: ($verificationBy == 'phone')
+);
         if ($result && !$result['status']) {
             if ($request->ajax()) {
                 return response()->json([

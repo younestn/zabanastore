@@ -62,31 +62,40 @@ class ShopViewController extends Controller
     }
 
     public function seller_shop(Request $request, $slug): View|JsonResponse|Redirector|RedirectResponse
-    {
-        $themeName = theme_root_path();
-        $shop = Shop::where('slug', $slug)->first();
+{
+    $themeName = theme_root_path();
+    $shop = Shop::with('seller')->where('slug', $slug)->first();
 
-        if (!$shop) {
-            Toastr::error(translate('Shop_does_not_exist'));
-            return redirect()->route('home');
-        }
-
-        if (getWebConfig(name: 'business_mode') == 'single' && $shop['author_type'] != 'admin') {
-            Toastr::error(translate('access_denied!!'));
-            return redirect()->route('home');
-        }
-
-        return match ($themeName) {
-            'default' => self::default_theme($request, $shop),
-            'theme_aster' => self::theme_aster($request, $shop),
-            'theme_fashion' => self::theme_fashion($request, $shop),
-        };
+    if (!$shop) {
+        Toastr::error(translate('Shop_does_not_exist'));
+        return redirect()->route('home');
     }
 
+    if (getWebConfig(name: 'business_mode') == 'single' && $shop['author_type'] != 'admin') {
+        Toastr::error(translate('access_denied!!'));
+        return redirect()->route('home');
+    }
+
+    if ($shop['author_type'] != 'admin' && (!$shop->seller || $shop->seller->status != 'approved')) {
+        Toastr::warning(translate('not_found'));
+        return redirect('/');
+    }
+
+    return match ($themeName) {
+        'default' => self::default_theme($request, $shop),
+        'theme_aster' => self::theme_aster($request, $shop),
+        'theme_fashion' => self::theme_fashion($request, $shop),
+    };
+}
     public function default_theme($request, $shop): View|JsonResponse|Redirector|RedirectResponse
-    {
-        self::checkShopExistence($shop);
-        $productAddedBy = $shop['author_type'] == 'admin' ? 'admin' : 'seller';
+{
+    $shopExistence = self::checkShopExistence($shop);
+    if ($shopExistence !== true) {
+        return $shopExistence;
+    }
+
+    $productAddedBy = $shop['author_type'] == 'admin' ? 'admin' : 'seller';
+
         $productUserID = $shop['seller_id'] == 0 ? 0 : $shop['seller_id'];
         $shopId = $shop['author_type'] == 'admin' ? 0 : $shop['id'];
         $shopAllProducts = ProductManager::getAllProductsData($request, $productUserID, $productAddedBy);
@@ -192,35 +201,34 @@ class ShopViewController extends Controller
         ])->when($shop['author_type'] == 'admin', function ($query) {
             return $query->where(['added_by' => 'admin']);
         })->when($shop['author_type'] != 'admin', function ($query) use ($shop) {
-            $seller = Seller::find($shop['id']);
-            if ($seller) {
-                return $query->where(['added_by' => 'seller', 'user_id' => $seller->id]);
-            } else {
-                return $query->whereRaw('1 = 0');
-            }
-        });
+    $seller = Seller::find($shop['seller_id']);
+    if ($seller) {
+        return $query->where(['added_by' => 'seller', 'user_id' => $seller->id]);
+    } else {
+        return $query->whereRaw('1 = 0');
+    }
+});
 
         if ($shop['author_type'] == "admin") {
             $totalOrder = Order::where('seller_is', 'admin')->where('order_type', 'default_type')->count();
             $products_for_review = Product::active()->where('added_by', 'admin')->withCount('reviews')->count();
         } else {
-            $seller = Seller::find($shop['id']);
-            if ($seller) {
-                $totalOrder = $seller->orders
-                    ->where('seller_is', 'seller')
-                    ->where('order_type', 'default_type')
-                    ->count();
-                $products_for_review = Product::active()
-                    ->where('added_by', 'seller')
-                    ->where('user_id', $seller->id)
-                    ->withCount('reviews')
-                    ->count();
-            } else {
-                $totalOrder = 0;
-                $products_for_review = 0;
-            }
-
-        }
+    $seller = Seller::find($shop['seller_id']);
+    if ($seller) {
+        $totalOrder = $seller->orders
+            ->where('seller_is', 'seller')
+            ->where('order_type', 'default_type')
+            ->count();
+        $products_for_review = Product::active()
+            ->where('added_by', 'seller')
+            ->where('user_id', $seller->id)
+            ->withCount('reviews')
+            ->count();
+    } else {
+        $totalOrder = 0;
+        $products_for_review = 0;
+    }
+}
 
         $featuredProductsList = ProductManager::getPriorityWiseFeaturedProductsQuery(query: $featuredProductQuery, dataLimit: 'all');
         $products = $productListData->paginate(20)->appends($request->all());

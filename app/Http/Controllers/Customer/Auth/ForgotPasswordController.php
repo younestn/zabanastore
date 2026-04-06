@@ -50,35 +50,42 @@ class ForgotPasswordController extends Controller
     }
 
     public function resetPasswordRequest(Request $request): RedirectResponse|JsonResponse
-    {
-        $request->validate([
-            'identity' => 'required',
-        ]);
+{
+    $request->validate([
+        'identity' => 'required',
+    ]);
 
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-            Toastr::error($result['message']);
-            return back();
+    $verificationBy = getWebConfig(name: 'forgot_password_verification') ?? 'phone';
+
+    $result = RecaptchaService::verificationStatus(
+        request: $request,
+        session: 'default_recaptcha_id_customer_auth',
+        action: 'customer_auth',
+        firebase: ($verificationBy == 'phone')
+    );
+
+    if ($result && !$result['status']) {
+        if ($request->ajax()) {
+            return response()->json([
+                'error' => $result['message'],
+            ]);
         }
+        Toastr::error($result['message']);
+        return back();
+    }
 
-        $customer = $this->customerRepo->getByIdentity(filters: ['phone' => $request['identity']]);
-        if (!$customer) {
-            Toastr::error(translate('No_such_user_found'));
-            return back();
-        }
+    $customer = $this->customerRepo->getByIdentity(filters: ['identity' => $request['identity']]);
+    if (!$customer) {
+        Toastr::error(translate('No_such_user_found'));
+        return back();
+    }
 
-        if ($customer->is_active == 0) {
-            Toastr::error(translate('Your_account_is_deactivated'));
-            return back();
-        }
+    if ($customer->is_active == 0) {
+        Toastr::error(translate('Your_account_is_deactivated'));
+        return back();
+    }
 
-        session()->put('forgot_password_identity', $request['identity']);
-        $verificationBy = 'phone';
+    session()->put('forgot_password_identity', $request['identity']);
         $otpIntervalTime = getWebConfig(name: 'otp_resend_time') ?? 1;
         $smsErrorMsg = translate('something_went_wrong.') . ' ' . translate('please_try_again_after_sometime');
 
@@ -107,29 +114,51 @@ class ForgotPasswordController extends Controller
                     $response = 'success';
                 }
             } else {
-                try {
-                    $token = Str::random(120);
-                    $resetUrl = route('customer.auth.reset-password', ['identity' => base64_encode($customer['email']), 'token' => $token]);
-                    $data = [
-                        'userType' => 'customer',
-                        'templateName' => 'forgot-password',
-                        'userName' => $customer['f_name'],
-                        'subject' => translate('password_reset'),
-                        'title' => translate('password_reset'),
-                        'passwordResetURL' => $resetUrl,
-                    ];
-                    $this->phoneOrEmailVerificationRepo->updateOrCreate(params: ['phone_or_email' => $customer['email']], value: [
-                        'phone_or_email' => $customer['email'],
-                        'token' => $token,
-                    ]);
-                    event(new PasswordResetEvent(email: $customer['email'], data: $data));
-                    Toastr::success(translate('Check_your_email') . ' ' . translate('Password_reset_url_sent'));
-                } catch (\Exception $exception) {
-                    Toastr::error(translate('email_is_not_configured') . '. ' . translate('contact_with_the_administrator'));
-                }
-                return back();
-            }
+    $emailServicesSmtp = getWebConfig(name: 'mail_config');
+    if ($emailServicesSmtp['status'] == 0) {
+        $emailServicesSmtp = getWebConfig(name: 'mail_config_sendgrid');
+    }
 
+    if ($emailServicesSmtp['status'] != 1) {
+        Toastr::error(translate('email_is_not_configured') . '. ' . translate('contact_with_the_administrator'));
+        return back();
+    }
+
+    try {
+        $token = Str::random(120);
+        $resetUrl = route('customer.auth.reset-password', [
+            'identity' => base64_encode($customer['email']),
+            'token' => $token
+        ]);
+
+        $data = [
+            'userType' => 'customer',
+            'templateName' => 'forgot-password',
+            'userName' => $customer['f_name'],
+            'subject' => translate('password_reset'),
+            'title' => translate('password_reset'),
+            'passwordResetURL' => $resetUrl,
+            'throw_on_error' => true,
+        ];
+
+        $this->phoneOrEmailVerificationRepo->updateOrCreate(
+            params: ['phone_or_email' => $customer['email']],
+            value: [
+                'phone_or_email' => $customer['email'],
+                'token' => $token,
+            ]
+        );
+
+        event(new PasswordResetEvent(email: $customer['email'], data: $data));
+
+        Toastr::success(translate('Check_your_email') . ' ' . translate('Password_reset_url_sent'));
+    } catch (\Exception $exception) {
+        Toastr::error(translate('email_send_fail'));
+        return back();
+    }
+
+    return back();
+}
             if (isset($response) && $response == 'success') {
                 $identity = $verificationBy == 'phone' ? $customer['phone'] : $customer['email'];
                 $type = $verificationBy == 'phone' ? 'phone_verification' : 'email_verification';
@@ -337,20 +366,27 @@ class ForgotPasswordController extends Controller
             return redirect()->back();
         }
 
-        $result = RecaptchaService::verificationStatus(request: $request, session: 'default_recaptcha_id_customer_auth', action: "customer_auth", firebase: true);
-        if ($result && !$result['status']) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'error' => $result['message'],
-                ]);
-            }
-
-            Toastr::error($result['message']);
-            return back();
-        }
-
-        $firebaseOTPVerification = getWebConfig(name: 'firebase_otp_verification') ?? [];
         $phoneVerification = base64_decode($request['type']) == 'phone_verification';
+
+$result = RecaptchaService::verificationStatus(
+    request: $request,
+    session: 'default_recaptcha_id_customer_auth',
+    action: 'customer_auth',
+    firebase: $phoneVerification
+);
+
+if ($result && !$result['status']) {
+    if ($request->ajax()) {
+        return response()->json([
+            'error' => $result['message'],
+        ]);
+    }
+
+    Toastr::error($result['message']);
+    return back();
+}
+
+$firebaseOTPVerification = getWebConfig(name: 'firebase_otp_verification') ?? [];
         $identity = base64_decode($request['identity']);
 
         $maxOTPHit = getWebConfig(name: 'maximum_otp_hit') ?? 5;

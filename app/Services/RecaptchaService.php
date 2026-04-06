@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\SessionKey;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 
@@ -20,6 +18,7 @@ class RecaptchaService
         ]);
 
         $data = $response->json();
+
         if (!($data['success'] ?? false)) {
             ToastMagic::error(translate('ReCAPTCHA_Failed'));
             return false;
@@ -29,6 +28,7 @@ class RecaptchaService
             ToastMagic::error(translate('ReCAPTCHA_Score_Too_Low_Please_Try_Again'));
             return false;
         }
+
         if ($action !== null && ($data['action'] ?? '') !== $action) {
             ToastMagic::error(translate('ReCAPTCHA_Action_Invalid'));
             return false;
@@ -40,61 +40,71 @@ class RecaptchaService
     public static function verificationStatus(object|array $request, string $session, ?string $action = 'default', ?bool $firebase = false): array
     {
         $firebaseOTPVerification = getWebConfig(name: 'firebase_otp_verification') ?? [];
-        if ($firebase && $firebaseOTPVerification && $firebaseOTPVerification['status']) {
-            if (empty($request['g-recaptcha-response'])) {
+
+        $requestData = is_array($request) ? $request : $request->all();
+
+        $defaultCaptchaValue = $requestData['default_captcha_value'] ?? null;
+        $recaptchaResponse = $requestData['g-recaptcha-response']
+            ?? $requestData['firebase-auth-recaptcha-response']
+            ?? null;
+
+        if ($firebase && $firebaseOTPVerification && !empty($firebaseOTPVerification['status'])) {
+            if (empty($recaptchaResponse)) {
                 return [
                     'status' => false,
                     'message' => translate('ReCAPTCHA_Failed'),
                 ];
-            } else {
-                return [
-                    'status' => true,
-                    'message' => translate('ReCAPTCHA_verification_success.'),
-                ];
             }
+
+            return [
+                'status' => true,
+                'message' => translate('ReCAPTCHA_verification_success.'),
+            ];
         }
 
         $recaptcha = getWebConfig(name: 'recaptcha');
-        if (isset($recaptcha) && $recaptcha['status'] == 1 && !$request['default_captcha_value']) {
+
+        if (isset($recaptcha) && !empty($recaptcha['status']) && !$defaultCaptchaValue) {
             try {
-                $request->validate([
-                    'g-recaptcha-response' => [
-                        function ($attribute, $value, $fail) use ($action) {
-                            if (empty($value)) {
-                                $fail(translate('ReCAPTCHA_verification_failed.'));
-                                return;
-                            }
-                            if (!RecaptchaService::verify(token: $value, action: $action)) {
-                                $fail(translate('ReCAPTCHA_verification_failed.'));
-                                return;
-                            }
-                        },
-                    ],
-                ]);
+                validator(
+                    array_merge($requestData, ['g-recaptcha-response' => $recaptchaResponse]),
+                    [
+                        'g-recaptcha-response' => [
+                            function ($attribute, $value, $fail) use ($action) {
+                                if (empty($value)) {
+                                    $fail(translate('ReCAPTCHA_verification_failed.'));
+                                    return;
+                                }
+
+                                if (!RecaptchaService::verify(token: $value, action: $action)) {
+                                    $fail(translate('ReCAPTCHA_verification_failed.'));
+                                }
+                            },
+                        ],
+                    ]
+                )->validate();
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return [
                     'status' => false,
                     'message' => $e->validator->errors()->first('g-recaptcha-response'),
                 ];
             }
-        } else if (strtolower(session($session)) != strtolower($request['default_captcha_value'])) {
+        } elseif (strtolower((string) session($session)) !== strtolower((string) $defaultCaptchaValue)) {
             return [
                 'status' => false,
                 'message' => translate('ReCAPTCHA_failed.'),
             ];
         }
 
-        if (isset($request['default_captcha_value']) && strtolower(session($session)) == strtolower($request['default_captcha_value'])) {
+        if ($defaultCaptchaValue !== null && strtolower((string) session($session)) === strtolower((string) $defaultCaptchaValue)) {
             session()->forget($session);
         }
 
         session()->forget($session);
+
         return [
             'status' => true,
             'message' => translate('ReCAPTCHA_verification_success.'),
         ];
     }
 }
-
-
-?>

@@ -3,7 +3,10 @@
 @if(isset($product))
     @php($overallRating = getOverallRating($product?->reviews))
     <div class="product border rounded text-center d-flex flex-column gap-10 get-view-by-onclick"
-         data-link="{{route('product', $product->slug)}}">
+         data-link="{{route('product', [
+    'identifier' => $product->id,
+    'slug' => $product->slug,
+])}}">
         <div class="product__top width--100 height-12-5-rem aspect-1">
             @if(getProductPriceByType(product: $product, type: 'discount', result: 'value') > 0)
                 <span class="product__discount-badge">

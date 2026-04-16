@@ -54,7 +54,10 @@
                                                 <div class="position-absolute bottom-0 w-100 z-3">
                                                     <div class="p-3 d-flex justify-content-center align-items-center">
                                                         @if ($productActive && $isActive)
-                                                            <a href="{{ route('product', $product['slug']) }}"
+                                                            <a href="{{ route('product', [
+    'identifier' => $product['id'],
+    'slug' => $product['slug'],
+]) }}"
                                                                class="btn bg-primary--light text-primary p-2 rounded-50" target="_blank">
                                                                 <i class="fi fi-rr-globe"></i>
                                                                 <span class="fs-12">{{ translate('View in Website') }}</span>
@@ -1068,7 +1071,7 @@
                 });
             }, 300);
         });
-        
+
     </script>
 
 @endpush

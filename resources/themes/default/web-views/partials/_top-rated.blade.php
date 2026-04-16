@@ -18,7 +18,10 @@
                 @foreach($topRatedProducts as $key => $product)
                     @if($key < 6)
                         <div class="col-sm-6">
-                            <a class="__best-selling" href="{{route('product', $product->slug)}}">
+                            <a class="__best-selling" href="{{route('product', [
+    'identifier' => $product->id,
+    'slug' => $product->slug,
+])}}">
                                 @if(getProductPriceByType(product: $product, type: 'discount', result: 'value') > 0)
                                     <div class="d-flex">
                                     <span class="for-discount-value p-1 pl-2 pr-2 font-bold fs-13">

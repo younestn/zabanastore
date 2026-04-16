@@ -457,4 +457,7 @@ return [
 	"if_sales_commission_is_disabled_here_the_system_default_commission_will_be_applied" => "If sales commission is disabled here the system default commission will be applied",
 	"No_admin_Found" => "No admin Found",
 	"otp_has_been_sent_to_your_email_address" => "Otp has been sent to your email address",
+	"do_you_want_to_turn_on_this_as_the_default_withdraw_method" => "Do you want to turn on this as the default withdraw method",
+	"transaction_table" => "Transaction table",
+	"available" => "Available",
 ];

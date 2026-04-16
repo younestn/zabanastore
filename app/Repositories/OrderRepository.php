@@ -4,6 +4,11 @@ namespace App\Repositories;
 
 use App\Contracts\Repositories\OrderRepositoryInterface;
 use App\Models\AdminWallet;
+use App\Models\BusinessSetting;
+use App\Models\Seller;
+use App\Models\SellerCommissionAdjustment;
+use App\Models\SellerCommissionInvoice;
+use App\Models\SellerCommissionAlertLog;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\OrderExpectedDeliveryHistory;
@@ -320,11 +325,25 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function manageWalletOnOrderStatusChange(object $order, string $receivedBy): bool
     {
-        $order = $this->order->find($order['id']);
-        $orderSummary = getOrderSummary(order: $order);
-        $orderAmount = $orderSummary['subtotal'] - $orderSummary['total_discount_on_product'] - $order['discount_amount'];
-        $commission = $order['admin_commission'];
-        $shippingModel = $order->shipping_responsibility;
+        $order = $this->order->with(['seller'])->find($order['id']);
+$orderSummary = getOrderSummary(order: $order);
+$orderAmount = $orderSummary['subtotal'] - $orderSummary['total_discount_on_product'] - $order['discount_amount'];
+$orderAmount = max(round((float)$orderAmount, 2), 0);
+
+$commissionData = $this->calculateSellerCommissionData(
+    order: $order,
+    commissionableAmount: $orderAmount
+);
+
+$commission = $commissionData['commission_amount'];
+
+if ((float)$order->admin_commission !== (float)$commission) {
+    $order->admin_commission = $commission;
+    $order->save();
+    $order->refresh();
+}
+
+$shippingModel = $order->shipping_responsibility;
 
         $adminWallet = $this->adminWallet->where('admin_id', 1)->first();
         if (!$adminWallet) {
@@ -525,8 +544,32 @@ class OrderRepository implements OrderRepositoryInterface
             }
         } else {
             $transaction = $this->orderTransaction->where(['order_id' => $order['id']])->first();
-            $transaction->status = 'disburse';
-            $transaction->save();
+
+$transactionData = [
+    'transaction_id' => $transaction?->transaction_id ?: getUniqueId(),
+    'customer_id' => $order['customer_id'],
+    'seller_id' => $order['seller_id'],
+    'seller_is' => $order['seller_is'],
+    'order_id' => $order['id'],
+    'order_amount' => $orderAmount,
+    'seller_amount' => max(round($orderAmount - $commission, 2), 0),
+    'admin_commission' => $commission,
+    'received_by' => $receivedBy,
+    'status' => 'disburse',
+    'delivery_charge' => $order['shipping_cost'] - ($order['is_shipping_free'] ? $order['extra_discount'] : 0),
+    'tax' => $orderSummary['total_tax'],
+    'delivered_by' => $receivedBy,
+    'payment_method' => $order['payment_method'],
+    'updated_at' => now(),
+];
+
+if ($transaction) {
+    $transaction->fill($transactionData);
+    $transaction->save();
+} else {
+    $transactionData['created_at'] = now();
+    $this->orderTransaction->create($transactionData);
+}
 
             $wallet = $this->adminWallet->where('admin_id', 1)->first();
             $wallet->commission_earned += $commission;
@@ -555,10 +598,194 @@ class OrderRepository implements OrderRepositoryInterface
                 $wallet->save();
             }
         }
-
+$this->syncMonthlySellerCommissionInvoice(order: $order, commissionData: $commissionData);
         return true;
     }
+private function calculateSellerCommissionData(object $order, float $commissionableAmount): array
+{
+    if (($order->seller_is ?? null) !== 'seller' || empty($order->seller_id)) {
+        return [
+            'type' => 'inhouse',
+            'value' => (float)($order->admin_commission ?? 0),
+            'commission_amount' => (float)($order->admin_commission ?? 0),
+        ];
+    }
 
+    $rule = $this->resolveSellerCommissionRule(order: $order);
+
+    $commissionAmount = 0;
+    if ($rule['type'] === 'fixed') {
+        $commissionAmount = (float)$rule['value'];
+    } else {
+        $commissionAmount = ($commissionableAmount * (float)$rule['value']) / 100;
+    }
+
+    $commissionAmount = max(round($commissionAmount, 2), 0);
+    $commissionAmount = min($commissionAmount, $commissionableAmount);
+
+    return [
+        'type' => $rule['type'],
+        'value' => (float)$rule['value'],
+        'commission_amount' => $commissionAmount,
+    ];
+}
+
+private function resolveSellerCommissionRule(object $order): array
+{
+    $defaultType = BusinessSetting::where('type', 'default_seller_commission_type')->value('value') ?? 'percentage';
+    $defaultValue = (float)(BusinessSetting::where('type', 'default_seller_commission_value')->value('value') ?? 0);
+
+    $seller = Seller::find($order->seller_id);
+
+    if (!$seller) {
+        return [
+            'type' => $defaultType,
+            'value' => $defaultValue,
+        ];
+    }
+
+    if (($seller->seller_commission_type ?? null) === 'percentage' && !is_null($seller->seller_commission_value)) {
+        return [
+            'type' => 'percentage',
+            'value' => (float)$seller->seller_commission_value,
+        ];
+    }
+
+    if (($seller->seller_commission_type ?? null) === 'fixed' && !is_null($seller->seller_commission_value)) {
+        return [
+            'type' => 'fixed',
+            'value' => (float)$seller->seller_commission_value,
+        ];
+    }
+
+    if (!is_null($seller->sales_commission_percentage) && empty($seller->seller_commission_value)) {
+        return [
+            'type' => 'percentage',
+            'value' => (float)$seller->sales_commission_percentage,
+        ];
+    }
+
+    return [
+        'type' => $defaultType,
+        'value' => $defaultValue,
+    ];
+}
+
+private function syncMonthlySellerCommissionInvoice(object $order, array $commissionData): void
+{
+    if (($order->seller_is ?? null) !== 'seller' || empty($order->seller_id)) {
+        return;
+    }
+
+    $periodDate = Carbon::parse($order->updated_at ?? now());
+
+    $invoice = SellerCommissionInvoice::firstOrNew([
+        'seller_id' => $order->seller_id,
+        'invoice_year' => (int)$periodDate->year,
+        'invoice_month' => (int)$periodDate->month,
+    ]);
+
+    $wasPaid = $invoice->exists && $invoice->payment_status === 'paid';
+    $previousTotalCommission = (float)($invoice->total_commission ?? 0);
+
+    $invoice->period_start = $periodDate->copy()->startOfMonth()->toDateString();
+    $invoice->period_end = $periodDate->copy()->endOfMonth()->toDateString();
+
+    if (!$invoice->exists) {
+        $invoice->payment_status = 'unpaid';
+    }
+
+    if (empty($invoice->commission_type_snapshot)) {
+        $invoice->commission_type_snapshot = $commissionData['type'];
+    }
+
+    if (is_null($invoice->commission_value_snapshot)) {
+        $invoice->commission_value_snapshot = $commissionData['value'];
+    }
+
+    $invoice->save();
+
+    $this->syncCommissionThresholdAlertState((int) $order->seller_id);
+
+    $ordersQuery = $this->order->query()
+        ->where([
+            'seller_id' => $order->seller_id,
+            'seller_is' => 'seller',
+            'order_status' => 'delivered',
+        ])
+        ->whereYear('updated_at', $periodDate->year)
+        ->whereMonth('updated_at', $periodDate->month);
+
+    $orderCommissionTotal = (float)(clone $ordersQuery)->sum('admin_commission');
+    $ordersCount = (int)(clone $ordersQuery)->count();
+
+    $manualAdjustmentTotal = (float) SellerCommissionAdjustment::query()
+        ->where('seller_commission_invoice_id', $invoice->id)
+        ->selectRaw("COALESCE(SUM(CASE WHEN adjustment_type = 'add' THEN amount ELSE -amount END), 0) as total")
+        ->value('total');
+
+    $invoice->orders_count = $ordersCount;
+    $invoice->order_commission_total = round($orderCommissionTotal, 2);
+    $invoice->manual_adjustment_total = round($manualAdjustmentTotal, 2);
+    $invoice->total_commission = round($invoice->order_commission_total + $invoice->manual_adjustment_total, 2);
+
+    if ($wasPaid && abs($invoice->total_commission - $previousTotalCommission) > 0.0001) {
+        $invoice->payment_status = 'unpaid';
+        $invoice->paid_at = null;
+        $invoice->paid_by_admin_id = null;
+        $invoice->payment_note = trim(
+            ($invoice->payment_note ? $invoice->payment_note . PHP_EOL : '') .
+            'تمت إعادة فتح الفاتورة تلقائيًا بعد تغيّر إجمالي العمولة.'
+        );
+    }
+
+    $invoice->save();
+}
+private function syncCommissionThresholdAlertState(int $sellerId): void
+{
+    $thresholdAmount = (float) (BusinessSetting::where('type', 'seller_commission_threshold_amount')->value('value') ?? 0);
+
+    if ($thresholdAmount <= 0) {
+        return;
+    }
+
+    $unpaidAmount = (float) SellerCommissionInvoice::query()
+        ->where('seller_id', $sellerId)
+        ->where('payment_status', 'unpaid')
+        ->sum('total_commission');
+
+    foreach (['seller', 'admin'] as $recipientType) {
+        $latestAlert = SellerCommissionAlertLog::query()
+            ->where('seller_id', $sellerId)
+            ->where('recipient_type', $recipientType)
+            ->latest('id')
+            ->first();
+
+        if ($unpaidAmount >= $thresholdAmount) {
+            if (!$latestAlert || $latestAlert->alert_status === 'resolved') {
+                SellerCommissionAlertLog::create([
+                    'seller_id' => $sellerId,
+                    'threshold_amount' => $thresholdAmount,
+                    'unpaid_amount' => $unpaidAmount,
+                    'recipient_type' => $recipientType,
+                    'alert_status' => 'sent',
+                    'sent_at' => now(),
+                ]);
+            }
+        } else {
+            if ($latestAlert && $latestAlert->alert_status === 'sent') {
+                SellerCommissionAlertLog::create([
+                    'seller_id' => $sellerId,
+                    'threshold_amount' => $thresholdAmount,
+                    'unpaid_amount' => $unpaidAmount,
+                    'recipient_type' => $recipientType,
+                    'alert_status' => 'resolved',
+                    'sent_at' => now(),
+                ]);
+            }
+        }
+    }
+}
     public function getListWhereBetween(array $filters = [], string $selectColumn = null, string $whereBetween = null, array $whereBetweenFilters = [], array $relations = [], int|string $dataLimit = DEFAULT_DATA_LIMIT, int $offset = null): Collection|LengthAwarePaginator
     {
         return $this->order->with($relations)->where($filters)

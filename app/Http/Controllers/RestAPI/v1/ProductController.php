@@ -303,48 +303,69 @@ class ProductController extends Controller
         return response()->json(['products' => $products_array], 200);
     }
 
-    public function getProductDetails(Request $request, $slug): JsonResponse
-    {
-        $user = Helpers::getCustomerInformation($request);
+    public function getProductDetails(Request $request, $identifier): JsonResponse
+{
+    $user = Helpers::getCustomerInformation($request);
 
-        $product = Product::active()->with(['reviews.customer', 'seller.shop', 'tags', 'digitalVariation', 'clearanceSale' => function ($query) {
-                return $query->active();
-            }])
-            ->withCount(['wishList' => function ($query) use ($user) {
-                $query->where('customer_id', $user != 'offline' ? $user->id : '0');
-            }])
-            ->where(['slug' => $slug])->first();
-
-        if (isset($product)) {
-            $restockRequestedIds = $this->restockProductRepo->getListWhere(filters: ['product_id' => $product['id']], dataLimit: 'all')?->pluck('id')->toArray() ?? [];
-
-            $product = Helpers::product_data_formatting($product, false);
-            if (isset($product->reviews) && !empty($product->reviews)) {
-                $overallRating = getOverallRating($product?->reviews);
-                $product['average_review'] = $overallRating[0];
-            } else {
-                $product['average_review'] = 0;
-            }
-
-            $product['reviews_count'] = $product->reviews->count();
-            $product['digital_product_authors_names'] = $this->productService->getProductAuthorsInfo(product: $product)['names'];
-            $product['digital_product_publishing_house_names'] = $this->productService->getProductPublishingHouseInfo(product: $product)['names'];
-
-            if ($user != 'offline' && count($restockRequestedIds) > 0) {
-
-                $restockCustomerRequestedList = $this->restockProductCustomerRepo->getListWhere(
-                    filters: ['customer_id' => $user->id, 'restock_product_ids' => $restockRequestedIds]
-                )->pluck('variant')->toArray();
-
-                $product['restock_requested_list'] = $restockCustomerRequestedList;
-                $product['is_restock_requested'] = count($restockCustomerRequestedList) > 0 ? 1 : 0;
-            } else {
-                $product['restock_requested_list'] = [];
-                $product['is_restock_requested'] = 0;
-            }
+    $baseQuery = Product::active()->with([
+        'reviews.customer',
+        'seller.shop',
+        'tags',
+        'digitalVariation',
+        'clearanceSale' => function ($query) {
+            return $query->active();
         }
-        return response()->json($product, 200);
+    ])->withCount([
+        'wishList' => function ($query) use ($user) {
+            $query->where('customer_id', $user != 'offline' ? $user->id : '0');
+        }
+    ]);
+
+    if (is_numeric($identifier)) {
+        $product = (clone $baseQuery)->where('id', (int)$identifier)->first();
+    } else {
+        $product = (clone $baseQuery)->where('slug', $identifier)->first();
     }
+
+    if (!$product) {
+        return response()->json(['message' => 'Product not found'], 404);
+    }
+
+    $restockRequestedIds = $this->restockProductRepo
+        ->getListWhere(filters: ['product_id' => $product['id']], dataLimit: 'all')
+        ?->pluck('id')
+        ->toArray() ?? [];
+
+    $product = Helpers::product_data_formatting($product, false);
+
+    if (isset($product->reviews) && !empty($product->reviews)) {
+        $overallRating = getOverallRating($product?->reviews);
+        $product['average_review'] = $overallRating[0];
+    } else {
+        $product['average_review'] = 0;
+    }
+
+    $product['reviews_count'] = $product->reviews->count();
+    $product['digital_product_authors_names'] = $this->productService->getProductAuthorsInfo(product: $product)['names'];
+    $product['digital_product_publishing_house_names'] = $this->productService->getProductPublishingHouseInfo(product: $product)['names'];
+
+    if ($user != 'offline' && count($restockRequestedIds) > 0) {
+        $restockCustomerRequestedList = $this->restockProductCustomerRepo->getListWhere(
+            filters: [
+                'customer_id' => $user->id,
+                'restock_product_ids' => $restockRequestedIds
+            ]
+        )->pluck('variant')->toArray();
+
+        $product['restock_requested_list'] = $restockCustomerRequestedList;
+        $product['is_restock_requested'] = count($restockCustomerRequestedList) > 0 ? 1 : 0;
+    } else {
+        $product['restock_requested_list'] = [];
+        $product['is_restock_requested'] = 0;
+    }
+
+    return response()->json($product, 200);
+}
 
     public function getBestSellingProducts(Request $request): JsonResponse
     {
@@ -469,7 +490,10 @@ class ProductController extends Controller
     {
         $product = Product::where('slug', $product_id)->first();
         try {
-            $link = route('product', $product->slug);
+            $link = route('product', [
+    'identifier' => $product->id,
+    'slug' => $product->slug,
+]);
             return response()->json($link, 200);
         } catch (\Exception $e) {
             return response()->json(['errors' => $e], 403);

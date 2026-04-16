@@ -57,7 +57,9 @@ class Seller extends Authenticatable
         'holder_name',
         'auth_token',
         'sales_commission_percentage',
-        'gst',
+'seller_commission_type',
+'seller_commission_value',
+'gst',
         'cm_firebase_token',
         'pos_status',
         'minimum_order_amount',
@@ -72,8 +74,11 @@ class Seller extends Authenticatable
         'l_name' => 'string',
         'country_code' => 'string',
         'orders_count' => 'integer',
-        'product_count' => 'integer',
-        'pos_status' => 'integer',
+'product_count' => 'integer',
+'pos_status' => 'integer',
+'sales_commission_percentage' => 'float',
+'seller_commission_type' => 'string',
+'seller_commission_value' => 'float',
     ];
 
     public function scopeApproved($query)
@@ -127,6 +132,21 @@ class Seller extends Authenticatable
     }
 
     protected $appends = ['image_full_url'];
+
+    public function commissionInvoices(): HasMany
+{
+    return $this->hasMany(SellerCommissionInvoice::class, 'seller_id');
+}
+
+public function commissionAdjustments(): HasMany
+{
+    return $this->hasMany(SellerCommissionAdjustment::class, 'seller_id');
+}
+
+public function commissionAlertLogs(): HasMany
+{
+    return $this->hasMany(SellerCommissionAlertLog::class, 'seller_id');
+}
 
     protected static function boot(): void
     {

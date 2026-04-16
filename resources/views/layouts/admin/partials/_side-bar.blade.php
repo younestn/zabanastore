@@ -875,6 +875,13 @@
                                 <span class="text-truncate">{{ translate('withdraws') }}</span>
                             </a>
                         </li>
+                                                <li class="nav-item">
+                            <a class="nav-link {{ Request::is('admin/vendors/commission-invoices*') ? 'active' : '' }}"
+                               href="{{ route('admin.vendors.commission-invoices.index') }}"
+                               title="فواتير العمولات">
+                                <span class="text-truncate">فواتير العمولات</span>
+                            </a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link {{ (Request::is('admin/vendors/withdraw-method/*')) ? 'active' : '' }}"
                                href="{{ route('admin.vendors.withdraw-method.list') }}"

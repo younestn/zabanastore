@@ -45,24 +45,46 @@ class ProductDetailsController extends Controller
      * @param string $slug
      * @return View|RedirectResponse
      */
-    public function index(string $slug): View|RedirectResponse
-    {
-        $theme_name = theme_root_path();
+    public function index(string $identifier, ?string $slug = null): View|RedirectResponse
+{
+    $theme_name = theme_root_path();
 
-        return match ($theme_name) {
-            'default' => self::getDefaultTheme(slug: $slug),
-            'theme_aster' => self::getThemeAster(slug: $slug),
-            'theme_fashion' => self::getThemeFashion(slug: $slug),
-        };
+    return match ($theme_name) {
+        'default' => $this->getDefaultTheme(identifier: $identifier, slug: $slug),
+        'theme_aster' => $this->getThemeAster(identifier: $identifier, slug: $slug),
+        'theme_fashion' => $this->getThemeFashion(identifier: $identifier, slug: $slug),
+    };
+}
+
+private function getProductParams(string $identifier, ?string $slug = null): array
+{
+    $params = [
+        'customer_id' => Auth::guard('customer')->user()->id ?? 0,
+    ];
+
+    if (is_numeric($identifier)) {
+        $params['id'] = (int)$identifier;
+    } else {
+        $params['slug'] = $slug ?: $identifier;
     }
 
-    public function getDefaultTheme(string $slug): View|RedirectResponse
+    return $params;
+}
+
+    public function getDefaultTheme(string $identifier, ?string $slug = null): View|RedirectResponse
     {
         $product = $this->productRepo->getWebFirstWhereActive(
-            params: ['slug' => $slug, 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
-            relations: ['seoInfo', 'digitalVariation', 'reviews', 'seller.shop', 'digitalProductAuthors.author',
-                'digitalProductPublishingHouse.publishingHouse', 'clearanceSale' => 'clearanceSale']
-        );
+    params: $this->getProductParams(identifier: $identifier, slug: $slug),
+    relations: [
+        'seoInfo',
+        'digitalVariation',
+        'reviews',
+        'seller.shop',
+        'digitalProductAuthors.author',
+        'digitalProductPublishingHouse.publishingHouse',
+        'clearanceSale' => 'clearanceSale'
+    ]
+);
 
         if ($product) {
             $productDetailsMeta = $product?->seoInfo;
@@ -136,13 +158,23 @@ class ProductDetailsController extends Controller
         return back();
     }
 
-    public function getThemeAster(string $slug): View|RedirectResponse
+    public function getThemeAster(string $identifier, ?string $slug = null): View|RedirectResponse
     {
         $product = $this->productRepo->getWebFirstWhereActive(
-            params: ['slug' => $slug, 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
-            relations: ['seoInfo', 'digitalVariation', 'reviews' => 'reviews', 'seller.shop' => 'seller.shop', 'wishList' => 'wishList', 'compareList' => 'compareList', 'digitalProductAuthors.author', 'digitalProductPublishingHouse.publishingHouse', 'clearanceSale' => 'clearanceSale'],
-            withCount: ['orderDetails' => 'orderDetails', 'wishList' => 'wishList']
-        );
+    params: $this->getProductParams(identifier: $identifier, slug: $slug),
+    relations: [
+        'seoInfo',
+        'digitalVariation',
+        'reviews' => 'reviews',
+        'seller.shop' => 'seller.shop',
+        'wishList' => 'wishList',
+        'compareList' => 'compareList',
+        'digitalProductAuthors.author',
+        'digitalProductPublishingHouse.publishingHouse',
+        'clearanceSale' => 'clearanceSale'
+    ],
+    withCount: ['orderDetails' => 'orderDetails', 'wishList' => 'wishList']
+);
 
         if ($product ) {
             $productDetailsMeta = $product?->seoInfo;
@@ -252,13 +284,23 @@ class ProductDetailsController extends Controller
 
     }
 
-    public function getThemeFashion($slug): View|RedirectResponse
+    public function getThemeFashion(string $identifier, ?string $slug = null): View|RedirectResponse
     {
         $product = $this->productRepo->getWebFirstWhereActive(
-            params: ['slug' => $slug, 'customer_id' => Auth::guard('customer')->user()->id ?? 0],
-            relations: ['seoInfo', 'digitalVariation', 'reviews' => 'reviews', 'seller.shop' => 'seller.shop', 'wishList' => 'wishList', 'compareList' => 'compareList', 'digitalProductAuthors' => 'digitalProductAuthors', 'digitalProductPublishingHouse' => 'digitalProductPublishingHouse', 'clearanceSale' => 'clearanceSale'],
-            withCount: ['orderDetails' => 'orderDetails', 'wishList' => 'wishList']
-        );
+    params: $this->getProductParams(identifier: $identifier, slug: $slug),
+    relations: [
+        'seoInfo',
+        'digitalVariation',
+        'reviews' => 'reviews',
+        'seller.shop' => 'seller.shop',
+        'wishList' => 'wishList',
+        'compareList' => 'compareList',
+        'digitalProductAuthors' => 'digitalProductAuthors',
+        'digitalProductPublishingHouse' => 'digitalProductPublishingHouse',
+        'clearanceSale' => 'clearanceSale'
+    ],
+    withCount: ['orderDetails' => 'orderDetails', 'wishList' => 'wishList']
+);
 
         if ($product != null) {
             $productDetailsMeta = $product?->seoInfo;

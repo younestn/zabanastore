@@ -40,6 +40,7 @@ use App\Contracts\Repositories\WithdrawRequestRepositoryInterface;
 use App\Contracts\Repositories\OrderTransactionRepositoryInterface;
 use App\Contracts\Repositories\StockClearanceSetupRepositoryInterface;
 use App\Contracts\Repositories\StockClearanceProductRepositoryInterface;
+use App\Models\SellerCommissionInvoice;
 
 class VendorController extends BaseController
 {
@@ -390,23 +391,66 @@ class VendorController extends BaseController
     }
 
     public function getSettingListTabView(Request $request, $seller, $id): View
-    {
-        return view('admin-views.vendor.view.setting', compact('seller'));
-    }
+{
+    $commissionInvoices = SellerCommissionInvoice::query()
+        ->where('seller_id', $seller['id'])
+        ->orderByDesc('invoice_year')
+        ->orderByDesc('invoice_month')
+        ->paginate(10, ['*'], 'commission_page')
+        ->appends($request->all());
+
+    $unpaidCommissionTotal = (float) SellerCommissionInvoice::query()
+        ->where('seller_id', $seller['id'])
+        ->where('payment_status', 'unpaid')
+        ->sum('total_commission');
+
+    $currentCommissionType = data_get($seller, 'seller_commission_type')
+        ?: (!is_null(data_get($seller, 'sales_commission_percentage')) ? 'percentage' : 'default');
+
+    $currentCommissionValue = !is_null(data_get($seller, 'seller_commission_value'))
+        ? data_get($seller, 'seller_commission_value')
+        : data_get($seller, 'sales_commission_percentage');
+
+    return view('admin-views.vendor.view.setting', compact(
+        'seller',
+        'commissionInvoices',
+        'unpaidCommissionTotal',
+        'currentCommissionType',
+        'currentCommissionValue'
+    ));
+}
 
     public function updateSetting(Request $request, $id): RedirectResponse
     {
-        if ($request->has('commission')) {
-            request()->validate([
-                'commission' => 'required|numeric|min:1',
-            ]);
-            if ($request['commission_status'] == 1 && $request['commission'] == null) {
-                ToastMagic::error(translate('you_did_not_set_commission_percentage_field.'));
-            } else {
-                $this->vendorRepo->update(id: $id, data: ['sales_commission_percentage' => $request['commission_status'] == 1 ? $request['commission'] : null]);
-                ToastMagic::success(translate('commission_percentage_for_this_vendor_has_been_updated.'));
-            }
-        }
+        if ($request->has('commission_rule_update')) {
+    request()->validate([
+        'seller_commission_type' => 'required|in:default,percentage,fixed',
+        'seller_commission_value' => 'nullable|numeric|min:0',
+    ]);
+
+    $commissionType = $request['seller_commission_type'];
+    $commissionValue = $request['seller_commission_value'];
+
+    if (in_array($commissionType, ['percentage', 'fixed']) && ($commissionValue === null || $commissionValue === '')) {
+        ToastMagic::error('يرجى إدخال قيمة العمولة');
+        return back();
+    }
+
+    if ($commissionType === 'percentage' && (float)$commissionValue > 100) {
+        ToastMagic::error('نسبة العمولة يجب أن تكون بين 0 و 100');
+        return back();
+    }
+
+    $updateData = [
+        'seller_commission_type' => $commissionType,
+        'seller_commission_value' => $commissionType === 'default' ? null : $commissionValue,
+        'sales_commission_percentage' => $commissionType === 'percentage' ? $commissionValue : null,
+    ];
+
+    $this->vendorRepo->update(id: $id, data: $updateData);
+
+    ToastMagic::success('تم تحديث قاعدة العمولة لهذا البائع بنجاح');
+}
         if ($request->has('gst')) {
             if ($request['gst_status'] == 1 && $request['gst'] == null) {
                 ToastMagic::error(translate('you_did_not_set_GST_number_field.'));

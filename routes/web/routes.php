@@ -177,7 +177,7 @@ Route::post('checkout/calculate-shipping-price', [WebController::class, 'calcula
     });
 
     Route::controller(ProductDetailsController::class)->group(function () {
-        Route::get('/product/{slug}', 'index')->name('product');
+        Route::get('/product/{identifier}/{slug?}', 'index')->name('product');
     });
 
     Route::controller(ProductListController::class)->group(function () {

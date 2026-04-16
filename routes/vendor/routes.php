@@ -53,7 +53,7 @@ use App\Http\Controllers\Vendor\TransactionReportController;
 use App\Http\Controllers\Vendor\ProductReportController;
 use App\Http\Controllers\Vendor\OrderReportController;
 use App\Http\Controllers\Vendor\VendorPaymentInfoController;
-
+use App\Http\Controllers\Vendor\VendorCommissionController;
 Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], function () {
     Route::group(['prefix' => 'vendor', 'as' => 'vendor.'], function () {
         /* authentication */
@@ -353,6 +353,10 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                     Route::get('order-report', 'order_report')->name('order-report');
                     Route::get('order-report-excel', 'orderReportExportExcel')->name('order-report-excel');
                     Route::get('order-report-pdf', 'exportOrderReportInPDF')->name('order-report-pdf');
+                });
+                                Route::controller(VendorCommissionController::class)->group(function () {
+                    Route::get('commission-invoices', 'index')->name('commission-invoices');
+                    Route::get('commission-invoices/{id}', 'show')->name('commission-invoices.show');
                 });
                 // Route::any('set-date', [ReportController::class, "set_date"])->name("set-date");
 

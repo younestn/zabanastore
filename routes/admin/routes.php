@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\POS\POSOrderController;
 use App\Http\Controllers\Admin\Product\BrandController;
 use App\Http\Controllers\Admin\ProductReportController;
 use App\Http\Controllers\Admin\Vendor\VendorController;
+use App\Http\Controllers\Admin\Vendor\VendorCommissionController;
 use App\Http\Controllers\Admin\EmailTemplatesController;
 use App\Http\Controllers\Admin\Product\ReviewController;
 use App\Http\Controllers\Admin\Settings\AddonController;
@@ -368,6 +369,12 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
     });
 
     Route::group(['prefix' => 'vendors', 'as' => 'vendors.', 'middleware' => ['module:user_section']], function () {
+                Route::controller(VendorCommissionController::class)->group(function () {
+            Route::get('commission-invoices', 'index')->name('commission-invoices.index');
+            Route::get('commission-invoices/{id}', 'show')->name('commission-invoices.show');
+            Route::post('commission-invoices/{id}/mark-as-paid', 'markAsPaid')->name('commission-invoices.mark-as-paid');
+            Route::post('commission-invoices/{id}/adjustments', 'addAdjustment')->name('commission-invoices.adjustments.store');
+        });
         Route::controller(VendorController::class)->group(function () {
             Route::get('list', 'index')->name('vendor-list');
             Route::get('add', 'getAddView')->name('add');

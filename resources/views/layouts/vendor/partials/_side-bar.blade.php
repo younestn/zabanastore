@@ -9,8 +9,15 @@
     use App\Models\Order;
     use App\Models\RefundRequest;
     use App\Models\Shop;
+    use App\Models\SellerCommissionAlertLog;
     use App\Enums\ViewPaths\Vendor\Order as OrderEnum;
+
     $shop=Shop::where(['seller_id'=>auth('seller')->id()])->first();
+    $activeCommissionAlert = SellerCommissionAlertLog::query()
+    ->where('seller_id', auth('seller')->id())
+    ->where('recipient_type', 'seller')
+    ->latest('id')
+    ->first();
 @endphp
 <div id="sidebarMain" class="d-none">
     <aside class="js-navbar-vertical-aside navbar navbar-vertical-aside navbar-vertical navbar-vertical-fixed navbar-expand-xl navbar-bordered">
@@ -403,6 +410,19 @@
                                 <i class="tio-chart-bar-3 nav-icon"></i>
                                 <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate text-capitalize">
                                     {{ translate('transactions_Report') }}
+                                </span>
+                            </a>
+                        </li>
+                                                <li class="navbar-vertical-aside-has-menu {{ Request::is('vendor/report/commission-invoices*') ? 'active' : ''}}">
+                            <a class="js-navbar-vertical-aside-menu-link nav-link"
+                               href="{{ route('vendor.report.commission-invoices') }}"
+                               title="فواتير العمولات">
+                                <i class="tio-money-vs nav-icon"></i>
+                                <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate text-capitalize">
+                                    فواتير العمولات
+                                    @if($activeCommissionAlert && $activeCommissionAlert->alert_status === 'sent')
+                                        <span class="badge badge-soft-danger badge-pill ml-1">!</span>
+                                    @endif
                                 </span>
                             </a>
                         </li>

@@ -267,7 +267,6 @@ class OrderController extends BaseController
             ToastMagic::error(translate('Order_not_found'));
             return back();
         }
-
         $countryRestrictStatus = getWebConfig(name: 'delivery_country_restriction');
         $zipRestrictStatus = getWebConfig(name: 'delivery_zip_code_area_restriction');
         $deliveryCountry = $this->deliveryCountryCodeRepo->getList(dataLimit: 'all');
@@ -302,15 +301,22 @@ class OrderController extends BaseController
         ];
         $deliveryMen = $this->deliveryManRepo->getListWhere(filters: $filters, dataLimit: 'all');
         $isOrderOnlyDigital = $orderService->getCheckIsOrderOnlyDigital(order: $order);
-        if ($order['order_type'] == 'default_type') {
-            $orderCount = $this->orderRepo->getListWhereCount(filters: ['customer_id' => $order['customer_id']]);
-            return view(Order::VIEW[VIEW], compact('order', 'linkedOrders',
-                'deliveryMen', 'totalDelivered', 'physicalProduct', 'isOrderOnlyDigital',
-                'countryRestrictStatus', 'zipRestrictStatus', 'countries', 'zipCodes', 'orderCount'));
-        } else {
-            $orderCount = $this->orderRepo->getListWhereCount(filters: ['customer_id' => $order['customer_id'], 'order_type' => 'POS']);
-            return view(Order::VIEW_POS[VIEW], compact('order', 'orderCount'));
-        }
+
+$trustScorePhone = $order?->customer?->phone
+    ?? data_get($order, 'shipping_address_data.phone')
+    ?? data_get($order, 'billing_address_data.phone');
+
+$customerTrustScore = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
+
+if ($order['order_type'] == 'default_type') {
+    $orderCount = $this->orderRepo->getListWhereCount(filters: ['customer_id' => $order['customer_id']]);
+    return view(Order::VIEW[VIEW], compact('order', 'linkedOrders',
+        'deliveryMen', 'totalDelivered', 'physicalProduct', 'isOrderOnlyDigital',
+        'countryRestrictStatus', 'zipRestrictStatus', 'countries', 'zipCodes', 'orderCount', 'customerTrustScore'));
+} else {
+    $orderCount = $this->orderRepo->getListWhereCount(filters: ['customer_id' => $order['customer_id'], 'order_type' => 'POS']);
+    return view(Order::VIEW_POS[VIEW], compact('order', 'orderCount', 'customerTrustScore'));
+}
     }
 
     public function updateStatus(

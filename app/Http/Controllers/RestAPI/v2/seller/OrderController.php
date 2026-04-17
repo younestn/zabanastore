@@ -39,11 +39,16 @@ class OrderController extends Controller
         }
 
         $order_ids = OrderDetail::where(['seller_id' => $seller['id']])->pluck('order_id')->toArray();
-        $orders = Order::with(['customer', 'shipping'])->where(['seller_is' => 'seller'])->whereIn('id', $order_ids)->get();
-        $orders->map(function ($data) {
-            $data['billing_address_data'] = json_decode($data['billing_address_data']);
-            return $data;
-        });
+        $orders = Order::with(['customer', 'shipping'])
+    ->where(['seller_is' => 'seller'])
+    ->whereIn('id', $order_ids)
+    ->get();
+
+$orders->map(function ($data) {
+    $data['billing_address_data'] = json_decode($data['billing_address_data']);
+    $data['customer_trust_score'] = $data->trust_score_by_phone;
+    return $data;
+});
 
         return response()->json($orders, 200);
     }
@@ -60,12 +65,21 @@ class OrderController extends Controller
             ], 401);
         }
 
-        $details = OrderDetail::where(['seller_id' => $seller['id'], 'order_id' => $id])->get();
-        foreach ($details as $det) {
-            $det['product_details'] = Helpers::product_data_formatting(json_decode($det['product_details'], true));
-        }
+        $order = Order::with(['customer'])->where([
+    'id' => $id,
+    'seller_id' => $seller['id'],
+    'seller_is' => 'seller',
+])->first();
 
-        return response()->json($details, 200);
+$trustScore = $order ? $order->trust_score_by_phone : null;
+
+$details = OrderDetail::where(['seller_id' => $seller['id'], 'order_id' => $id])->get();
+foreach ($details as $det) {
+    $det['product_details'] = Helpers::product_data_formatting(json_decode($det['product_details'], true));
+    $det['customer_trust_score'] = $trustScore;
+}
+
+return response()->json($details, 200);
     }
 
     public function assign_delivery_man(Request $request)

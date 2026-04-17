@@ -460,4 +460,9 @@ return [
 	"do_you_want_to_turn_on_this_as_the_default_withdraw_method" => "Do you want to turn on this as the default withdraw method",
 	"transaction_table" => "Transaction table",
 	"available" => "Available",
+	"Visit_Vendor" => "Visit Vendor",
+	"station_code" => "Station code",
+	"failed_To_Deliver" => "Failed To Deliver",
+	"Failed_to_Deliver" => "Failed to Deliver",
+	"order_is_already_delivered." => "Order is already delivered.",
 ];

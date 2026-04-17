@@ -282,4 +282,210 @@ class Order extends Model
         ?? translate('shipping');
 }
 
+
+
+
+
+private static function normalizeTrustScorePhone(?string $phone): ?string
+{
+    if (empty($phone)) {
+        return null;
+    }
+
+    $digits = preg_replace('/\D+/', '', $phone);
+
+    if (empty($digits)) {
+        return null;
+    }
+
+    return strlen($digits) >= 9 ? substr($digits, -9) : $digits;
+}
+
+private static function buildTrustScorePhoneCandidates(?string $phone): array
+{
+    $normalized = self::normalizeTrustScorePhone($phone);
+    $digits = preg_replace('/\D+/', '', (string)$phone);
+
+    $candidates = array_filter([
+        trim((string)$phone),
+        $digits,
+        $normalized,
+        $normalized ? '0' . $normalized : null,
+        $normalized ? '213' . $normalized : null,
+        $normalized ? '+213' . $normalized : null,
+    ]);
+
+    return array_values(array_unique($candidates));
+}
+
+private static function decodeTrustScoreAddressData($value): array
+{
+    if (is_array($value)) {
+        return $value;
+    }
+
+    if (is_object($value)) {
+        return (array)$value;
+    }
+
+    if (blank($value)) {
+        return [];
+    }
+
+    $decoded = json_decode($value, true);
+
+    return is_array($decoded) ? $decoded : [];
+}
+
+private static function applyPhoneLikeConditions($query, array $candidates, string $column, string $boolean = 'and'): void
+{
+    $method = $boolean === 'or' ? 'orWhere' : 'where';
+
+    $query->{$method}(function ($subQuery) use ($candidates, $column) {
+        foreach ($candidates as $candidate) {
+            $subQuery->orWhere($column, 'like', '%' . $candidate . '%');
+        }
+    });
+}
+
+private static function extractPhonesForTrustScore(self $order, array $addressPhoneMap = []): array
+{
+    $phones = [];
+
+    if (!empty($order?->customer?->phone)) {
+        $phones[] = $order->customer->phone;
+    }
+
+    if (!empty($order->shipping_address) && isset($addressPhoneMap[$order->shipping_address])) {
+        $phones[] = $addressPhoneMap[$order->shipping_address];
+    }
+
+    if (!empty($order->billing_address) && isset($addressPhoneMap[$order->billing_address])) {
+        $phones[] = $addressPhoneMap[$order->billing_address];
+    }
+
+    $shippingAddressData = self::decodeTrustScoreAddressData($order->shipping_address_data ?? null);
+    $billingAddressData = self::decodeTrustScoreAddressData($order->billing_address_data ?? null);
+
+    if (!empty($shippingAddressData['phone'])) {
+        $phones[] = $shippingAddressData['phone'];
+    }
+
+    if (!empty($billingAddressData['phone'])) {
+        $phones[] = $billingAddressData['phone'];
+    }
+
+    return array_values(array_unique(array_filter($phones)));
+}
+
+public static function getCustomerTrustScoreByPhone(?string $phone): array
+{
+    $normalizedPhone = self::normalizeTrustScorePhone($phone);
+    $phoneCandidates = self::buildTrustScorePhoneCandidates($phone);
+
+    if (!$normalizedPhone || empty($phoneCandidates)) {
+        return [
+            'phone' => $phone,
+            'score' => 0,
+            'delivered' => 0,
+            'resolved_orders' => 0,
+            'has_history' => false,
+            'label' => 'لا يوجد سجل محسوم لهذا الرقم عبر جميع متاجر المنصة بعد',
+        ];
+    }
+
+    $terminalStatuses = ['delivered', 'returned', 'canceled', 'failed'];
+
+    $hasShippingAddressColumn = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'shipping_address');
+    $hasBillingAddressColumn = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'billing_address');
+    $hasShippingAddressDataColumn = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'shipping_address_data');
+    $hasBillingAddressDataColumn = \Illuminate\Support\Facades\Schema::hasColumn('orders', 'billing_address_data');
+
+    $hasShippingAddressesTable = \Illuminate\Support\Facades\Schema::hasTable('shipping_addresses')
+        && \Illuminate\Support\Facades\Schema::hasColumn('shipping_addresses', 'id')
+        && \Illuminate\Support\Facades\Schema::hasColumn('shipping_addresses', 'phone');
+
+    $orders = self::query()
+        ->with('customer')
+        ->whereIn('order_status', $terminalStatuses)
+        ->where(function ($query) use (
+            $phoneCandidates,
+            $hasShippingAddressColumn,
+            $hasBillingAddressColumn,
+            $hasShippingAddressDataColumn,
+            $hasBillingAddressDataColumn,
+            $hasShippingAddressesTable
+        ) {
+            $query->whereHas('customer', function ($customerQuery) use ($phoneCandidates) {
+                self::applyPhoneLikeConditions($customerQuery, $phoneCandidates, 'phone');
+            });
+
+            if ($hasShippingAddressDataColumn) {
+                self::applyPhoneLikeConditions($query, $phoneCandidates, 'shipping_address_data', 'or');
+            }
+
+            if ($hasBillingAddressDataColumn) {
+                self::applyPhoneLikeConditions($query, $phoneCandidates, 'billing_address_data', 'or');
+            }
+
+            if ($hasShippingAddressesTable && $hasShippingAddressColumn) {
+                $query->orWhereIn('shipping_address', function ($addressQuery) use ($phoneCandidates) {
+                    $addressQuery->from('shipping_addresses')->select('id');
+                    self::applyPhoneLikeConditions($addressQuery, $phoneCandidates, 'phone');
+                });
+            }
+
+            if ($hasShippingAddressesTable && $hasBillingAddressColumn) {
+                $query->orWhereIn('billing_address', function ($addressQuery) use ($phoneCandidates) {
+                    $addressQuery->from('shipping_addresses')->select('id');
+                    self::applyPhoneLikeConditions($addressQuery, $phoneCandidates, 'phone');
+                });
+            }
+        })
+        ->get();
+
+    $addressPhoneMap = [];
+
+    if ($hasShippingAddressesTable && $orders->isNotEmpty()) {
+        $addressIds = $orders->pluck('shipping_address')
+            ->merge($orders->pluck('billing_address'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($addressIds->isNotEmpty()) {
+            $addressPhoneMap = \Illuminate\Support\Facades\DB::table('shipping_addresses')
+                ->whereIn('id', $addressIds)
+                ->pluck('phone', 'id')
+                ->toArray();
+        }
+    }
+
+    $matchedOrders = $orders->filter(function ($order) use ($normalizedPhone, $addressPhoneMap) {
+        foreach (self::extractPhonesForTrustScore($order, $addressPhoneMap) as $candidatePhone) {
+            if (self::normalizeTrustScorePhone($candidatePhone) === $normalizedPhone) {
+                return true;
+            }
+        }
+
+        return false;
+    });
+
+    $resolvedOrders = $matchedOrders->count();
+    $deliveredOrders = $matchedOrders->where('order_status', 'delivered')->count();
+
+    $score = $resolvedOrders > 0 ? round(($deliveredOrders / $resolvedOrders) * 100, 2) : 0;
+    $displayScore = floor($score) == $score ? (int)$score : $score;
+
+    return [
+        'phone' => $phone,
+        'score' => $displayScore,
+        'delivered' => $deliveredOrders,
+        'resolved_orders' => $resolvedOrders,
+        'has_history' => $resolvedOrders > 0,
+        'label' => $resolvedOrders > 0
+            ? "هذا الرقم لديه نسبة استلام {$displayScore}% عبر جميع متاجر المنصة (استلم {$deliveredOrders} من أصل {$resolvedOrders} طلبات)"
+            : 'لا يوجد سجل محسوم لهذا الرقم عبر جميع متاجر المنصة بعد',
+    ];
+}
 }

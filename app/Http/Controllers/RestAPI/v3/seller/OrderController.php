@@ -127,9 +127,14 @@ private function normalizeAddressData($addressData)
     $data['total_product_discount'] = $totalProductDiscount;
 
     $data->shipping_address_data = $this->normalizeAddressData($data->shipping_address_data);
-    $data->billing_address_data = $this->normalizeAddressData($data->billing_address_data);
+$data->billing_address_data = $this->normalizeAddressData($data->billing_address_data);
+$trustScorePhone = $data?->customer?->phone
+    ?? ($data->shipping_address_data['phone'] ?? null)
+    ?? ($data->billing_address_data['phone'] ?? null);
 
-    return $data;
+$data['customer_trust_score'] = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
+
+return $data;
 })->values();
 
 return response()->json([
@@ -155,6 +160,12 @@ return response()->json([
             if ($detail->order) {
     $detail->order->shipping_address_data = $this->normalizeAddressData($detail->order->shipping_address_data);
     $detail->order->billing_address_data = $this->normalizeAddressData($detail->order->billing_address_data);
+
+    $trustScorePhone = $detail->order?->customer?->phone
+        ?? ($detail->order->shipping_address_data['phone'] ?? null)
+        ?? ($detail->order->billing_address_data['phone'] ?? null);
+
+    $detail->order->customer_trust_score = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
 }
         }
 

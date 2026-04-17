@@ -537,34 +537,32 @@
                         @endif
                     </div>
                 </div>
-                @if(!$order->is_guest && $order->customer)
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="d-flex gap-2 align-items-center justify-content-between mb-4">
-                                <h4 class="d-flex gap-2">
-                                    <img src="{{dynamicAsset(path: 'public/assets/back-end/img/vendor-information.png')}}" alt="">
-                                    {{translate('customer_information')}}
-                                </h4>
-                            </div>
-                            <div class="media">
-                                <div class="me-3">
-                                    <img class="avatar rounded-circle avatar-70"
-                                         src="{{getStorageImages(path: $order->customer->image_full_url,type: 'backend-profile')}}"
-                                         alt="{{translate('image')}}">
-                                </div>
-                                <div class="media-body d-flex flex-column gap-1">
-                                    <span class="title-color"><strong>{{$order->customer['f_name'].' '.$order->customer['l_name']}}</strong></span>
-                                    <span class="title-color">
-                                    <strong>{{$orderCount}} </strong>
-                                    {{translate('orders')}}
-                                </span>
-                                    <span class="title-color break-all"><strong>{{$order->customer['phone']}}</strong></span>
-                                    <span class="title-color break-all">{{$order->customer['email']}}</span>
-                                </div>
-                            </div>
-                        </div>
+            @if(($order->customer) || ($shippingAddress && !empty($shippingAddress->phone)))
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex gap-2 align-items-center justify-content-between mb-4">
+                <h4 class="d-flex gap-2">
+                    <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/vendor-information.png') }}" alt="">
+                    {{ translate('customer_information') }}
+                </h4>
+            </div>
+
+            @php($displayName = (!$order->is_guest && $order->customer) ? trim(($order->customer['f_name'] ?? '').' '.($order->customer['l_name'] ?? '')) : ($shippingAddress->contact_person_name ?? translate('guest_customer')))
+            @php($displayPhone = (!$order->is_guest && $order->customer && !empty($order->customer['phone'])) ? $order->customer['phone'] : ($shippingAddress->phone ?? ''))
+            @php($displayEmail = (!$order->is_guest && $order->customer && !empty($order->customer['email'])) ? $order->customer['email'] : ($shippingAddress->email ?? ''))
+
+            <div class="media align-items-start">
+                <div class="media-body">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="title-color">
+                            <strong>{{ $displayName }}</strong>
+                        </span>
                     </div>
-                @endif
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
                 @if($physicalProduct)
                     <div class="card">
                         @if($shippingAddress)
@@ -588,9 +586,24 @@
     </div>
 
     <div>
-        <span>{{translate('contact')}} :</span>
-        <strong>{{$shippingAddress->phone}}</strong>
+    <span>{{translate('contact')}} :</span>
+    <strong>{{$shippingAddress->phone}}</strong>
+</div>
+
+@if(isset($customerTrustScore))
+    <div class="mt-2">
+        @if($customerTrustScore['has_history'])
+            <small class="text-success d-block">
+                هذا الزبون لديه نسبة استلام {{ $customerTrustScore['score'] }}%  في الموقع
+                (استلم {{ $customerTrustScore['delivered'] }} من أصل {{ $customerTrustScore['resolved_orders'] }} طلبات)
+            </small>
+        @else
+            <small class="text-muted d-block">
+                أول شراء لهذا الزبون في الموقع
+            </small>
+        @endif
     </div>
+@endif
 
     @if ($order->is_guest && $shippingAddress->email)
         <div>
@@ -1376,7 +1389,7 @@
     <span id="message-deliveryman-charge-invalid-text" data-text="{{ translate("add_valid_data") }}"></span>
     <span id="add-date-update-url" data-url="{{route('vendor.orders.amount-date-update')}}"></span>
 
-    <span id="customer-name" data-text="{{$order->customer['f_name']??""}} {{$order->customer['l_name']??""}}}"></span>
+   <span id="customer-name" data-text="{{ trim(($order->customer['f_name'] ?? '').' '.($order->customer['l_name'] ?? '')) }}"></span>
     <span id="is-shipping-exist" data-status="{{$shippingAddress ? 'true':'false'}}"></span>
     <span id="shipping-address" data-text="{{$shippingAddress->address??''}}"></span>
     <span id="shipping-latitude" data-latitude="{{$shippingAddress->latitude??'-33.8688'}}"></span>
@@ -1384,7 +1397,7 @@
     <span id="billing-latitude" data-latitude="{{$billing->latitude??'-33.8688'}}"></span>
     <span id="billing-longitude" data-longitude="{{$billing->longitude??'151.2195'}}"></span>
     <span id="location-icon" data-path="{{dynamicAsset(path: 'public/assets/front-end/img/customer_location.png')}}"></span>
-    <span id="customer-image" data-path="{{dynamicStorage(path: 'storage/app/public/profile/')}}{{$order->customer->image??""}}"></span>
+<span id="customer-image" data-path="{{ dynamicStorage(path: 'storage/app/public/profile/') }}{{ $order->customer?->image ?? '' }}"></span>
     <span id="deliveryman-charge-alert-message" data-message="{{translate('when_order_status_delivered_you_can`t_update_the_delivery_man_incentive').'.'}}"></span>
     <span id="payment-status-alert-message" data-message="{{translate('when_payment_status_paid_then_you_can`t_change_payment_status_paid_to_unpaid').'.'}}"></span>
 @endsection

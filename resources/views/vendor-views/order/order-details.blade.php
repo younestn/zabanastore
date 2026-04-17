@@ -551,13 +551,35 @@
             @php($displayPhone = (!$order->is_guest && $order->customer && !empty($order->customer['phone'])) ? $order->customer['phone'] : ($shippingAddress->phone ?? ''))
             @php($displayEmail = (!$order->is_guest && $order->customer && !empty($order->customer['email'])) ? $order->customer['email'] : ($shippingAddress->email ?? ''))
 
-            <div class="media align-items-start">
-                <div class="media-body">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <span class="title-color">
-                            <strong>{{ $displayName }}</strong>
-                        </span>
+            <div class="media">
+                @if(!$order->is_guest && $order->customer)
+                    <div class="me-3">
+                        <img class="avatar rounded-circle avatar-70"
+                             src="{{ getStorageImages(path: $order->customer->image_full_url, type: 'backend-profile') }}"
+                             alt="{{ translate('image') }}">
                     </div>
+                @endif
+
+                <div class="media-body d-flex flex-column gap-1">
+                    <span class="title-color">
+                        <strong>{{ $displayName }}</strong>
+                    </span>
+
+                    @if(!$order->is_guest && $order->customer)
+                        <span class="title-color">
+                            <strong>{{ $orderCount }}</strong> {{ translate('orders') }}
+                        </span>
+                    @endif
+
+                    @if($displayPhone)
+                        <span class="title-color break-all">
+                            <strong>{{ $displayPhone }}</strong>
+                        </span>
+                    @endif
+
+                    @if($displayEmail)
+                        <span class="title-color break-all">{{ $displayEmail }}</span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -594,12 +616,12 @@
     <div class="mt-2">
         @if($customerTrustScore['has_history'])
             <small class="text-success d-block">
-                هذا الزبون لديه نسبة استلام {{ $customerTrustScore['score'] }}%  في الموقع
+                هذا الزبون لديه نسبة استلام {{ $customerTrustScore['score'] }}% عبر جميع متاجر المنصة
                 (استلم {{ $customerTrustScore['delivered'] }} من أصل {{ $customerTrustScore['resolved_orders'] }} طلبات)
             </small>
         @else
             <small class="text-muted d-block">
-                أول شراء لهذا الزبون في الموقع
+                لا يوجد سجل لهذا الزبون في المنصة
             </small>
         @endif
     </div>

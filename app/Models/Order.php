@@ -484,8 +484,8 @@ public static function getCustomerTrustScoreByPhone(?string $phone): array
         'resolved_orders' => $resolvedOrders,
         'has_history' => $resolvedOrders > 0,
         'label' => $resolvedOrders > 0
-            ? "هذا الرقم لديه نسبة استلام {$displayScore}% عبر جميع متاجر المنصة (استلم {$deliveredOrders} من أصل {$resolvedOrders} طلبات)"
-            : 'لا يوجد سجل محسوم لهذا الرقم عبر جميع متاجر المنصة بعد',
+            ? "هذا الزبون لديه نسبة استلام {$displayScore}% عبر جميع متاجر المنصة (استلم {$deliveredOrders} من أصل {$resolvedOrders} طلبات)"
+            : 'لا يوجد سجل  لهذا الزبون عبر جميع متاجر المنصة بعد',
     ];
 }
 }

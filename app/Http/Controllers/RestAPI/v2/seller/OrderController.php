@@ -46,7 +46,12 @@ class OrderController extends Controller
 
 $orders->map(function ($data) {
     $data['billing_address_data'] = json_decode($data['billing_address_data']);
-    $data['customer_trust_score'] = $data->trust_score_by_phone;
+
+    $trustScorePhone = $data?->customer?->phone
+        ?? data_get($data, 'shipping_address_data.phone')
+        ?? data_get($data, 'billing_address_data.phone');
+
+    $data['customer_trust_score'] = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
     return $data;
 });
 
@@ -71,7 +76,11 @@ $orders->map(function ($data) {
     'seller_is' => 'seller',
 ])->first();
 
-$trustScore = $order ? $order->trust_score_by_phone : null;
+$trustScorePhone = $order?->customer?->phone
+    ?? data_get($order, 'shipping_address_data.phone')
+    ?? data_get($order, 'billing_address_data.phone');
+
+$trustScore = $order ? \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone) : null;
 
 $details = OrderDetail::where(['seller_id' => $seller['id'], 'order_id' => $id])->get();
 foreach ($details as $det) {

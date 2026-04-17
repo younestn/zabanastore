@@ -128,6 +128,7 @@ private function normalizeAddressData($addressData)
 
     $data->shipping_address_data = $this->normalizeAddressData($data->shipping_address_data);
 $data->billing_address_data = $this->normalizeAddressData($data->billing_address_data);
+
 $trustScorePhone = $data?->customer?->phone
     ?? ($data->shipping_address_data['phone'] ?? null)
     ?? ($data->billing_address_data['phone'] ?? null);

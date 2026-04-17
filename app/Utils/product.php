@@ -130,7 +130,25 @@ if (!function_exists('getRatingCount')) {
 if (!function_exists('units')) {
     function units(): array
     {
-        return ['kg', 'pc', 'gms', 'ltrs', 'pair', 'oz', 'lb'];
+        return [
+            'قطعة',
+            'حبة',
+            'زوج',
+            'طقم',
+            'علبة',
+            'كرتون',
+            'حزمة',
+            'كيس',
+            
+            'قارورة',
+            'كغ',
+            'غ',
+            'لتر',
+            'مل',
+            'متر',
+            'سم',
+
+        ];
     }
 }
 

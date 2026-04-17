@@ -6,6 +6,7 @@ use App\Http\Controllers\RestAPI\v3\seller\auth\RegisterController;
 use App\Http\Controllers\RestAPI\v3\seller\BrandController;
 use App\Http\Controllers\RestAPI\v3\seller\ChatController;
 use App\Http\Controllers\RestAPI\v3\seller\ClearanceSaleController;
+use App\Http\Controllers\RestAPI\v3\seller\CommissionController;
 use App\Http\Controllers\RestAPI\v3\seller\CouponController;
 use App\Http\Controllers\RestAPI\v3\seller\DeliveryManCashCollectController;
 use App\Http\Controllers\RestAPI\v3\seller\DeliveryManController;
@@ -70,6 +71,13 @@ Route::group(['namespace' => 'RestAPI\v3\seller', 'prefix' => 'v3/seller', 'midd
             Route::post('balance-withdraw', 'withdraw_request');
             Route::delete('close-withdraw-request', 'close_withdraw_request');
         });
+
+        Route::group(['prefix' => 'commission'], function () {
+    Route::controller(CommissionController::class)->group(function () {
+        Route::get('current-month', 'currentMonthInvoice');
+        Route::post('invoices/{id}/send-payment-receipt', 'sendPaymentReceipt');
+    });
+});
 
         Route::controller(ShopController::class)->group(function () {
             Route::put('vacation-add', 'vacation_add');

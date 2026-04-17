@@ -161,17 +161,20 @@
 
                 <li class="nav-item">
                     <div class="dropdown">
-                        <button class="btn p-0 border-0 bg-transparent"
-                                type="button"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false">
+                        <button class="btn p-0 border-0 bg-transparent dropdown-toggle"
+        type="button"
+        id="adminProfileDropdown"
+        data-bs-toggle="dropdown"
+        data-bs-auto-close="true"
+        aria-expanded="false">
                             <img class="rounded-circle border border-2 min-w-36 aspect-1"
                                  width="36"
                                  src="{{ getStorageImages(path: auth('admin')->user()->image_full_url, type: 'backend-profile') }}"
                                  alt="{{ translate('image_description') }}">
                         </button>
 
-                        <div class="dropdown-menu dropdown-menu-end shadow-lg">
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg"
+     aria-labelledby="adminProfileDropdown">
                             <div class="px-3 py-2">
                                 <div class="d-flex gap-2 align-items-center">
                                     <img class="rounded-circle border border-2 aspect-1"

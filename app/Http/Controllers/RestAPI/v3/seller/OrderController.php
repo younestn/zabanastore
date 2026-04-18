@@ -51,7 +51,7 @@ private function firstNotEmpty(...$values)
 private function normalizeAddressData($addressData)
 {
     if (empty($addressData)) {
-        return $addressData;
+        return [];
     }
 
     $address = is_array($addressData)
@@ -59,9 +59,9 @@ private function normalizeAddressData($addressData)
         : json_decode(json_encode($addressData), true);
 
     if (!is_array($address)) {
-        return $addressData;
+        return [];
     }
-
+    
     $wilayaName = $this->firstNotEmpty(
         $address['state'] ?? null,
         $address['wilaya_name'] ?? null,
@@ -130,8 +130,8 @@ private function normalizeAddressData($addressData)
 $data->billing_address_data = $this->normalizeAddressData($data->billing_address_data);
 
 $trustScorePhone = $data?->customer?->phone
-    ?? ($data->shipping_address_data['phone'] ?? null)
-    ?? ($data->billing_address_data['phone'] ?? null);
+    ?? data_get($data->shipping_address_data, 'phone')
+    ?? data_get($data->billing_address_data, 'phone');
 
 $data['customer_trust_score'] = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
 
@@ -163,8 +163,8 @@ return response()->json([
     $detail->order->billing_address_data = $this->normalizeAddressData($detail->order->billing_address_data);
 
     $trustScorePhone = $detail->order?->customer?->phone
-        ?? ($detail->order->shipping_address_data['phone'] ?? null)
-        ?? ($detail->order->billing_address_data['phone'] ?? null);
+    ?? data_get($detail->order->shipping_address_data, 'phone')
+    ?? data_get($detail->order->billing_address_data, 'phone');
 
     $detail->order->customer_trust_score = \App\Models\Order::getCustomerTrustScoreByPhone($trustScorePhone);
 }

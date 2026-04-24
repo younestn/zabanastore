@@ -38,25 +38,30 @@ class CommissionController extends Controller
     }
 
     public function sendPaymentReceipt(Request $request, int|string $id): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'receipt_image' => 'required|mimes:jpg,jpeg,png,webp|max:5120',
-            'note' => 'nullable|string|max:1000',
-        ], [
-            'receipt_image.required' => 'يرجى اختيار صورة وصل الدفع',
-            'receipt_image.mimes' => 'صيغة الصورة غير مدعومة',
-            'receipt_image.max' => 'حجم الصورة كبير جدًا',
-        ]);
+{
+    $validator = Validator::make($request->all(), [
+        'receipt_image' => 'required|mimes:jpg,jpeg,png,webp|max:5120',
+        'note' => 'nullable|string|max:1000',
+    ], [
+        'receipt_image.required' => 'يرجى اختيار صورة وصل الدفع',
+        'receipt_image.mimes' => 'صيغة الصورة غير مدعومة',
+        'receipt_image.max' => 'حجم الصورة كبير جدًا. الحد الأقصى 5MB',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
-        }
+    if ($validator->fails()) {
+        return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 403);
+    }
 
+    try {
         $seller = $request->seller;
 
         $invoice = SellerCommissionInvoice::where('seller_id', $seller->id)->find($id);
         if (!$invoice) {
             return response()->json(['message' => 'فاتورة العمولة غير موجودة'], 404);
+        }
+
+        if ($invoice->payment_status === 'paid') {
+            return response()->json(['message' => 'هذه الفاتورة مدفوعة بالفعل'], 409);
         }
 
         $attachment = [[
@@ -74,7 +79,7 @@ class CommissionController extends Controller
             'الفترة: ' . $periodLabel,
             'من: ' . $invoice->period_start->format('Y-m-d'),
             'إلى: ' . $invoice->period_end->format('Y-m-d'),
-            'الإجمالي: ' . (float)$invoice->total_commission,
+            'الإجمالي: ' . (float) $invoice->total_commission,
         ];
 
         if ($request->filled('note')) {
@@ -112,7 +117,14 @@ class CommissionController extends Controller
         return response()->json([
             'message' => 'فشل إرسال وصل الدفع'
         ], 403);
+    } catch (\Throwable $e) {
+        report($e);
+
+        return response()->json([
+            'message' => 'حدث خطأ أثناء معالجة وصل الدفع'
+        ], 500);
     }
+}
 
     private function emptyCurrentMonthPayload(): array
     {

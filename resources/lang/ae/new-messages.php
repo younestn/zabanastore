@@ -465,4 +465,5 @@ return [
 	"failed_To_Deliver" => "Failed To Deliver",
 	"Failed_to_Deliver" => "Failed to Deliver",
 	"order_is_already_delivered." => "Order is already delivered.",
+	"The code field is required." => "The code field is required.",
 ];

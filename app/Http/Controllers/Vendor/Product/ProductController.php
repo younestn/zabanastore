@@ -537,18 +537,50 @@ class ProductController extends BaseController
     }
 
     public function getSkuCombinationView(Request $request, ProductService $service): JsonResponse
-    {
-        $product = $this->productRepo->getFirstWhere(params: ['id' => $request['product_id']], relations: ['digitalVariation', 'seoInfo']);
-        $combinationView = $service->getSkuCombinationView(request: $request, product: $product);
-        return response()->json(['view' => $combinationView]);
+{
+    if (empty($request['product_id'])) {
+        return response()->json(['view' => '']);
     }
 
-    public function getDigitalVariationCombinationView(Request $request, ProductService $service): JsonResponse
-    {
-        $product = $this->productRepo->getFirstWhere(params: ['id' => $request['product_id']], relations: ['digitalVariation']);
-        $combinationView = $service->getDigitalVariationCombinationView(request: $request, product: $product);
-        return response()->json(['view' => $combinationView]);
+    $product = $this->productRepo->getFirstWhereWithoutGlobalScope(
+        params: [
+            'id' => $request['product_id'],
+            'user_id' => auth('seller')->id(),
+            'added_by' => 'seller',
+        ],
+        relations: ['digitalVariation', 'seoInfo']
+    );
+
+    if (!$product) {
+        return response()->json(['view' => '']);
     }
+
+    $combinationView = $service->getSkuCombinationView(request: $request, product: $product);
+    return response()->json(['view' => $combinationView]);
+}
+
+public function getDigitalVariationCombinationView(Request $request, ProductService $service): JsonResponse
+{
+    if (empty($request['product_id'])) {
+        return response()->json(['view' => '']);
+    }
+
+    $product = $this->productRepo->getFirstWhereWithoutGlobalScope(
+        params: [
+            'id' => $request['product_id'],
+            'user_id' => auth('seller')->id(),
+            'added_by' => 'seller',
+        ],
+        relations: ['digitalVariation']
+    );
+
+    if (!$product) {
+        return response()->json(['view' => '']);
+    }
+
+    $combinationView = $service->getDigitalVariationCombinationView(request: $request, product: $product);
+    return response()->json(['view' => $combinationView]);
+}
 
     public function deleteDigitalVariationFile(Request $request, ProductService $service): JsonResponse
     {

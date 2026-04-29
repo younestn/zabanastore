@@ -3,7 +3,9 @@
 @section('title', $seller?->shop->name ?? translate('shop_Name'))
 
 @section('content')
-    @php($sellerBadge = $sellerBadge ?? ($seller?->seller_badge ?? null))
+    @php
+        $sellerBadge = $sellerBadge ?? ($seller?->seller_badge ?? null);
+    @endphp
 
     <div class="content container-fluid">
         <div class="mb-3">

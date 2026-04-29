@@ -3679,4 +3679,5 @@ return [
 	"you_cant_update_status" => "You cant update status",
 	"Customer_account_has_been_deleted" => "Customer account has been deleted",
 	"successfully product updated!" => "Successfully product updated!",
+	"when_payment_status_paid_then_you_can_not_change_payment_status_paid_to_unpaid." => "When payment status paid then you can not change payment status paid to unpaid.",
 ];

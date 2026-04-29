@@ -239,46 +239,33 @@ class CartManager
     }
 
     public static function updateProductShippingCost($cartList): void
-{
-    $shippingMethod = getWebConfig(name: 'shipping_method');
-    $adminShipping = ShippingType::where('seller_id', 0)->first();
-
-    foreach ($cartList as $cartKey => $cartItem) {
-        $shippingType = '';
-
-        if ($shippingMethod == 'inhouse_shipping') {
-            $shippingType = isset($adminShipping) ? $adminShipping->shipping_type : 'order_wise';
-        } else if ($shippingMethod == 'sellerwise_shipping') {
-            if ($cartItem->seller_is == 'admin') {
+    {
+        $shippingMethod = getWebConfig(name: 'shipping_method');
+        $adminShipping = ShippingType::where('seller_id', 0)->first();
+        foreach($cartList as $cartKey => $cartItem) {
+            $shippingType = '';
+            if ($shippingMethod == 'inhouse_shipping') {
                 $shippingType = isset($adminShipping) ? $adminShipping->shipping_type : 'order_wise';
-            } else {
-                $sellerShipping = ShippingType::where('seller_id', $cartItem->seller_id)->first();
-                $shippingType = isset($sellerShipping) ? $sellerShipping->shipping_type : 'order_wise';
+            } else if ($shippingMethod == 'sellerwise_shipping') {
+                if ($cartItem->seller_is == 'admin') {
+                    $shippingType = isset($adminShipping) ? $adminShipping->shipping_type : 'order_wise';
+                } else {
+                    $sellerShipping = ShippingType::where('seller_id', $cartItem->seller_id)->first();
+                    $shippingType = isset($sellerShipping) ? $sellerShipping->shipping_type : 'order_wise';
+                }
             }
-        }
 
-        if ($shippingType != 'order_wise') {
-            CartShipping::where('cart_group_id', $cartItem?->cart_group_id)->delete();
-        }
+            if ($shippingType != 'order_wise') {
+                CartShipping::where('cart_group_id', $cartItem?->cart_group_id)->delete();
+            }
 
-        $product = $cartItem->product;
-
-        if (!$product) {
-            Cart::where(['id' => $cartItem->id])->update([
-                'shipping_cost' => 0,
+            Cart::where(['id' =>  $cartItem->id])->update([
+                'shipping_cost' => $cartItem['product_type'] == 'physical' ? CartManager::get_shipping_cost_for_product_category_wise($cartItem->product, $cartItem['quantity']) : 0,
                 'shipping_type' => $shippingType,
             ]);
-            continue;
         }
 
-        Cart::where(['id' => $cartItem->id])->update([
-            'shipping_cost' => $cartItem['product_type'] == 'physical'
-                ? CartManager::get_shipping_cost_for_product_category_wise($product, $cartItem['quantity'])
-                : 0,
-            'shipping_type' => $shippingType,
-        ]);
     }
-}
 
     public static function order_wise_shipping_discount()
     {
@@ -884,10 +871,7 @@ class CartManager
     }
 
     public static function get_shipping_cost_for_product_category_wise($product, $qty)
-{
-    if (!$product) {
-        return 0;
-    }
+    {
         $shippingMethod = getWebConfig(name: 'shipping_method');
         $cost = 0;
 

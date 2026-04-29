@@ -444,7 +444,7 @@
             </div>
         </div>
     @endif
-@endforeach
+@endForeach
 
 @push('script')
     <script src="{{ dynamicAsset(path: 'public/assets/back-end/js/js-zip/jszip.min.js')}}"></script>

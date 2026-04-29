@@ -83,13 +83,23 @@ class Category extends Model
     }
 
     public function getNameAttribute($name): string|null
-    {
-        if (strpos(url()->current(), '/admin') || strpos(url()->current(), '/vendor') || strpos(url()->current(), '/seller')) {
-            return $name;
-        }
+{
+    $currentUrl = url()->current();
 
+    if (strpos($currentUrl, '/api/') !== false) {
         return $this->translations[0]->value ?? $name;
     }
+
+    if (
+        strpos($currentUrl, '/admin') !== false ||
+        strpos($currentUrl, '/vendor') !== false ||
+        strpos($currentUrl, '/seller') !== false
+    ) {
+        return $name;
+    }
+
+    return $this->translations[0]->value ?? $name;
+}
 
     public function getDefaultNameAttribute(): string|null
     {

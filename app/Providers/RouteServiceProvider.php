@@ -54,7 +54,6 @@ class RouteServiceProvider extends ServiceProvider
         //$this->mapUpdateRoutes();
 
         $this->mapBetaAdminRoutes();
-        $this->mapAiImageEnhancerRoutes();
         $this->mapBetaVendorRoutes();
         $this->mapBetaWebRoutes();
     }
@@ -126,14 +125,6 @@ class RouteServiceProvider extends ServiceProvider
             ->namespace($this->namespace)
             ->group(base_path('routes/admin/routes.php'));
     }
-
-    protected function mapAiImageEnhancerRoutes(): void
-    {
-        Route::middleware('web')
-            ->namespace($this->namespace)
-            ->group(base_path('routes/admin/ai-image-enhancer.php'));
-    }
-
     protected function mapBetaVendorRoutes(): void
     {
         Route::middleware('web')

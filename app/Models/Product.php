@@ -173,7 +173,7 @@ class Product extends Model
         'digital_file_ready_storage_type' => 'string',
     ];
 
-    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url'];
+    protected $appends = ['is_shop_temporary_close', 'thumbnail_full_url', 'preview_file_full_url', 'color_images_full_url', 'meta_image_full_url', 'images_full_url', 'digital_file_ready_full_url', 'seller_badge'];
 
     public function translations(): MorphMany
     {
@@ -269,6 +269,15 @@ class Product extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class, 'user_id');
+    }
+
+    public function getSellerBadgeAttribute(): ?array
+    {
+        if (($this->added_by ?? null) !== 'seller' || (int)($this->user_id ?? 0) <= 0) {
+            return null;
+        }
+
+        return app(\App\Services\SellerBadgeService::class)->getFormattedBadgeForSellerId((int)$this->user_id);
     }
 
     public function getIsShopTemporaryCloseAttribute($value): int

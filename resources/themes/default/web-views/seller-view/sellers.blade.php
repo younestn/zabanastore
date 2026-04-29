@@ -72,6 +72,9 @@
                                         </div>
                                         <div class="info pt-2">
                                             <h5 class="text-start">{{ $vendorItem['name'] }}</h5>
+                                            <div class="text-start mb-1">
+                                                @include('partials._seller-badge', ['badge' => $vendorItem->seller_badge ?? null])
+                                            </div>
                                             <div class="d-flex align-items-center">
                                                 <h6 class="web-text-primary">
                                                     {{ number_format($vendorItem['average_rating'],1) }}

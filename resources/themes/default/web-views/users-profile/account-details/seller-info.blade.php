@@ -35,7 +35,9 @@
                                     <div class="d-flex gap-2 gap-sm-3 align-items-sm-center justify-content-between">
                                         <div class="">
                                             <h6 class="text-capitalize seller-info-title mb-1 mb-sm-2">
-                                                {{ $order->seller->shop->name }}</h6>
+                                                {{ $order->seller->shop->name }}
+                                                @include('partials._seller-badge', ['badge' => $order->seller?->seller_badge ?? null])
+                                            </h6>
                                             <div class="rating-show justify-content-between">
                                                 <span class="d-inline-block font-size-sm text-body">
                                                     @for ($inc = 1; $inc <= 5; $inc++)

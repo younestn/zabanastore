@@ -59,6 +59,7 @@
         <div class="text-muted fs-12">
             @if($product->added_by=='seller')
                 {{ isset($product->seller->shop->name) ? Str::limit($product->seller->shop->name, 20) : '' }}
+                @include('partials._seller-badge', ['badge' => $product->seller?->seller_badge ?? null])
             @elseif($product->added_by=='admin')
                 {{getInHouseShopConfig(key:'name')}}
             @endif

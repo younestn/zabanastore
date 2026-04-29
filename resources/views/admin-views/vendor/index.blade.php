@@ -53,11 +53,15 @@
                                 <th>{{translate('status')}}</th>
                                 <th class="text-center">{{translate('total_products')}}</th>
                                 <th class="text-center">{{translate('total_orders')}}</th>
+                                <th class="text-center">{{translate('compliance_score')}}</th>
+                                <th class="text-center">{{translate('seller_badge')}}</th>
+                                <th class="text-center">{{translate('manual_override')}}</th>
                                 <th class="text-center">{{translate('action')}}</th>
                             </tr>
                         </thead>
                         <tbody>
                         @foreach($vendors as $key=>$seller)
+                            @php($sellerBadge = $vendorBadges[$seller->id] ?? $seller->seller_badge ?? null)
                             <tr>
                                 <td>{{$vendors->firstItem()+$key}}</td>
                                 <td>
@@ -67,6 +71,9 @@
                                             alt="">
                                         <div>
                                             <a class="text-dark text-hover-primary" href="{{ route('admin.vendors.view', ['id' => $seller->id]) }}">{{ $seller->shop ? Str::limit($seller->shop->name, 20) : translate('shop_not_found')}}</a>
+                                            <div class="mt-1">
+                                                @include('partials._seller-badge', ['badge' => $sellerBadge])
+                                            </div>
                                             <span class="text-danger fs-12">
                                                 @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $seller?->shop))
                                                     <br>
@@ -107,24 +114,31 @@
                                         {{ $seller->orders->where('seller_is', 'seller')->where('order_type', 'default_type')->count() }}
                                     </a>
                                 </td>
+                                <td class="text-center">
+                                    {{ $sellerBadge ? number_format($sellerBadge['compliance_score'], 2) . '%' : '-' }}
+                                </td>
+                                <td class="text-center">
+                                    @include('partials._seller-badge', ['badge' => $sellerBadge, 'showEmpty' => true])
+                                </td>
+                                <td class="text-center">
+                                    {{ $sellerBadge ? ($sellerBadge['is_manual'] ? translate('manual_badge') : translate('automatic_badge')) : '-' }}
+                                </td>
                                 <td>
-                                    <td>
-    <div class="d-flex justify-content-center gap-2">
-        <a title="{{ translate('view') }}"
-           class="btn btn-outline-info icon-btn"
-           href="{{ route('admin.vendors.view', $seller->id) }}">
-            <i class="fi fi-rr-eye"></i>
-        </a>
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a title="{{ translate('view') }}"
+                                           class="btn btn-outline-info icon-btn"
+                                           href="{{ route('admin.vendors.view', $seller->id) }}">
+                                            <i class="fi fi-rr-eye"></i>
+                                        </a>
 
-        @if($seller->status != 'pending')
-            <a title="{{ translate('chat') }}"
-               class="btn btn-outline-primary icon-btn"
-               href="{{ route('admin.messages.index', ['type' => 'vendor', 'vendor_id' => $seller->id]) }}">
-                <i class="fi fi-rr-comment-alt"></i>
-            </a>
-        @endif
-    </div>
-</td>
+                                        @if($seller->status != 'pending')
+                                            <a title="{{ translate('chat') }}"
+                                               class="btn btn-outline-primary icon-btn"
+                                               href="{{ route('admin.messages.index', ['type' => 'vendor', 'vendor_id' => $seller->id]) }}">
+                                                <i class="fi fi-rr-comment-alt"></i>
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

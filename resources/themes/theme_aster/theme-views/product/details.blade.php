@@ -786,6 +786,7 @@
                                                     <h2 class="cursor-pointer h5 mb-1">
                                                         {{ $product->seller->shop->name }}
                                                     </h2>
+                                                    @include('partials._seller-badge', ['badge' => $product->seller?->seller_badge ?? null])
 
                                                     @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product?->seller?->shop))
                                                         <div>

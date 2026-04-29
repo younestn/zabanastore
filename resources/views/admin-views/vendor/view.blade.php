@@ -3,6 +3,8 @@
 @section('title', $seller?->shop->name ?? translate('shop_Name'))
 
 @section('content')
+    @php($sellerBadge = $sellerBadge ?? ($seller?->seller_badge ?? null))
+
     <div class="content container-fluid">
         <div class="mb-3">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
@@ -97,9 +99,13 @@
                                 </div>
                             @endif
                             <div class="d-block">
-                                <h2 class="mb-3 pb-1 fs-20">
-                                    {{ $seller->shop ? $seller->shop?->name : translate('shop_Name') . ' : ' . translate('update_Please') }}
-                                </h2>
+                            <h2 class="mb-3 pb-1 fs-20 d-flex align-items-center gap-2 flex-wrap">
+    <span>
+        {{ $seller->shop ? $seller->shop?->name : translate('shop_Name') . ' : ' . translate('update_Please') }}
+    </span>
+
+    @include('partials._seller-badge', ['badge' => $sellerBadge])
+</h2>
                                 <div class="d-flex gap-3 flex-wrap lh-1 border rounded bg-white text-dark px-3 py-2">
                                     <a href="javascript:"
                                        class="text-dark"><span class="fw-bold">{{$seller->total_rating }}</span> {{translate('ratings')}}</a>
@@ -164,17 +170,25 @@
                                     <a href="{{ $seller['status']!="pending" ? route('admin.vendors.view',['id'=>$seller['id'], 'tab'=>'review']): 'javascript:' }}"
                                        class="text-dark"><span class="fw-bold">{{$seller->rating_count}}</span> {{translate('reviews')}}</a>
                                 </div>
-                                @if (
-                                    $seller['status'] != 'pending' &&
-                                        $seller['status'] != 'suspended' &&
-                                        $seller['status'] != 'rejected' &&
-                                        $seller?->shop)
-                                    <a href="{{ route('shopView', ['slug' => $seller?->shop['slug']]) }}"
-                                        class="btn btn-outline-primary mt-5" target="_blank">
-                                        <i class="fi fi-rr-globe"></i>
-                                        {{ translate('view_live') }}
-                                    </a>
-                                @endif
+                                <div class="d-flex flex-wrap gap-2 mt-5">
+    @if (
+        $seller['status'] != 'pending' &&
+            $seller['status'] != 'suspended' &&
+            $seller['status'] != 'rejected' &&
+            $seller?->shop)
+        <a href="{{ route('shopView', ['slug' => $seller?->shop['slug']]) }}"
+            class="btn btn-outline-primary" target="_blank">
+            <i class="fi fi-rr-globe"></i>
+            {{ translate('view_live') }}
+        </a>
+    @endif
+
+    <a href="{{ route('admin.vendors.verification-evaluation', ['id' => $seller['id']]) }}"
+        class="btn btn-outline-info">
+        <i class="fi fi-rr-badge-check"></i>
+        {{ translate('verification_evaluation') }}
+    </a>
+</div>
                             </div>
                         </div>
                     </div>
@@ -364,66 +378,45 @@
             </div>
         </div>
 
-        @if ($seller?->shop?->tin_certificate)
+        @php
+    $tinCertificate = $seller?->shop?->tin_certificate ?? null;
+    $certificatePath = null;
+    $certificatePathExist = false;
 
-            @php
-                $certificatePath = null;
-                $certificatePathExist = false;
-                if (!empty($seller?->shop?->tin_certificate)) {
-                    $certificatePath = dynamicStorage(
-                        path: 'storage/app/public/shop/documents/' . $seller?->shop?->tin_certificate,
-                    );
-                    $certificatePathExist = file_exists(
-                        base_path('storage/app/public/shop/documents/' . $seller?->shop?->tin_certificate),
-                    );
-                }
-            @endphp
-            @if($certificatePathExist)
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h3>
-                            {{ translate('TIN_Certificate') }}
-                        </h3>
-                        <p>
-                            {{ translate('here_you_can_see_your_business_tin_certificate.') }}
-                            {{ translate('to_update_or_edit_the_tin_visit_vendor_edit_page.') }}
-                        </p>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap gap-3">
-                            <div class="pdf-single w-280" data-pdf-url="{{ $certificatePath }}"
-                                 data-file-url="{{ $certificatePath }}" data-file-name="{{ $seller?->shop?->tin_certificate }}">
-                                <div class="pdf-frame">
-                                    <canvas class="pdf-preview d--none"></canvas>
-                                    <img class="pdf-thumbnail" alt="File Thumbnail"
-                                         src="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/doc-upload-icon.svg') }}">
-                                </div>
-                                <div class="overlay">
-                                    <div class="position-absolute top-0 inset-inline-end-0 p-2">
-                                        <a href="#" id="doc_download_btn" download=""
-                                           class="btn btn-primary icon-btn download-btn">
-                                            <i class="fi fi-rr-download"></i>
-                                        </a>
-                                    </div>
-                                    <div class="pdf-info">
-                                        <img src="{{ dynamicAsset(path: 'public/assets/back-end/img/icons/document.svg') }}" width="34"
-                                             alt="File Type Logo">
-                                        <div class="file-name-wrapper">
-                                            <span class="file-name">
-                                                {{ $seller?->shop?->tin_certificate }}
-                                            </span>
-                                            <span class="opacity-50">
-                                                {{ translate('Click_to_view_the_file') }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    if (!empty($tinCertificate)) {
+        $certificatePath = dynamicStorage(
+            path: 'storage/app/public/shop/documents/' . $tinCertificate,
+        );
+
+        $certificatePathExist = file_exists(
+            base_path('storage/app/public/shop/documents/' . $tinCertificate)
+        );
+    }
+@endphp
+
+@if(!empty($tinCertificate) && $certificatePathExist)
+    <div class="card mt-3">
+        <div class="card-header">
+            <h3>
+                {{ translate('TIN_Certificate') }}
+            </h3>
+        </div>
+
+        <div class="card-body">
+            <div class="uploaded-file-item justify-content-between">
+                <div class="file-name-wrapper">
+                    <span class="file-name">
+                        {{ $tinCertificate }}
+                    </span>
+                    <span class="opacity-50">
+                        {{ translate('Click_to_view_the_file') }}
+                    </span>
                 </div>
-            @endif
-        @endif
+            </div>
+        </div>
+    </div>
+@endif
+
 
         @if ($seller['status'] != 'pending')
             <div class="card mt-3">

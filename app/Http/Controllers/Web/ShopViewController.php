@@ -14,6 +14,7 @@ use App\Models\Seller;
 use App\Models\Shop;
 use App\Models\StockClearanceProduct;
 use App\Models\StockClearanceSetup;
+use App\Services\SellerBadgeService;
 use App\Utils\CartManager;
 use App\Utils\CategoryManager;
 use App\Utils\ProductManager;
@@ -56,6 +57,7 @@ class ShopViewController extends Controller
             'bottom_banner_full_url' => $shop->bottom_banner_full_url,
             'image_full_url' => $shop->image_full_url,
             'minimum_order_amount' => $shop['author_type'] == "admin" ? getWebConfig(name: 'minimum_order_amount') : $shop->seller->minimum_order_amount,
+            'seller_badge' => $shop['author_type'] == 'admin' ? null : app(SellerBadgeService::class)->getFormattedBadgeForSellerId((int)$shop['seller_id']),
         ];
 
 

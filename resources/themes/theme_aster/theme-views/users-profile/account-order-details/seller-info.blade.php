@@ -39,7 +39,10 @@
                                                 </div>
 
                                                 <div class="media-body d-flex flex-column gap-2">
-                                                    <h4>{{ $order?->seller?->shop->name }}</h4>
+                                                    <h4 class="d-flex align-items-center gap-2 flex-wrap">
+                                                        <span>{{ $order?->seller?->shop->name }}</span>
+                                                        @include('partials._seller-badge', ['badge' => $order?->seller?->seller_badge ?? null])
+                                                    </h4>
                                                     <div class="d-flex gap-2 align-items-center">
                                                         <div class="star-rating text-gold fs-12">
                                                             @for ($inc = 1; $inc <= 5; $inc++)

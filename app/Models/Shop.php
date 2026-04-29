@@ -81,7 +81,7 @@ class Shop extends Model
         'tin_certificate_storage_type',
     ];
 
-    protected $appends = ['image_full_url', 'bottom_banner_full_url', 'offer_banner_full_url', 'banner_full_url', 'tin_certificate_full_url'];
+    protected $appends = ['image_full_url', 'bottom_banner_full_url', 'offer_banner_full_url', 'banner_full_url', 'tin_certificate_full_url', 'seller_badge'];
 
     /**
      * The attributes that should be cast.
@@ -101,6 +101,15 @@ class Shop extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class, 'seller_id');
+    }
+
+    public function getSellerBadgeAttribute(): ?array
+    {
+        if (($this->author_type ?? null) === 'admin' || (int)($this->seller_id ?? 0) <= 0) {
+            return null;
+        }
+
+        return app(\App\Services\SellerBadgeService::class)->getFormattedBadgeForSellerId((int)$this->seller_id);
     }
 
     // old relation: product

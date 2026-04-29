@@ -143,6 +143,7 @@
                                                             <a class="shop-name get-view-by-onclick"
                                                               data-link="{{isset($coupon->seller->shop) ? route('shopView',['slug'=>$coupon->seller->shop['slug']]) : 'javascript:'}}">
                                                             {{ isset($coupon->seller->shop) ? $coupon->seller->shop->name : translate('shop_not_found') }}
+                                                            @include('partials._seller-badge', ['badge' => $coupon->seller?->seller_badge ?? null])
                                                         </a>
                                                         @endif
                                                 </span>

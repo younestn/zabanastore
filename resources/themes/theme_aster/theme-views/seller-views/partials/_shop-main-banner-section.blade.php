@@ -31,7 +31,10 @@
                             </div>
                         </div>
                         <div class="media-body d-flex flex-column gap-2">
-                            <h4>{{ $shopInfoArray['name']}}</h4>
+                            <h4 class="d-flex align-items-center gap-2 flex-wrap">
+                                <span>{{ $shopInfoArray['name']}}</span>
+                                @include('partials._seller-badge', ['badge' => $shopInfoArray['seller_badge'] ?? null])
+                            </h4>
                             <div class="d-flex gap-2 align-items-center">
                                 <span class="star-rating text-gold fs-12">
                                     @for ($index = 1; $index <= 5; $index++)

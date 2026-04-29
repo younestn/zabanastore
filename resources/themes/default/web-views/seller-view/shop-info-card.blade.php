@@ -44,6 +44,9 @@
                         @else
                             {{ getInHouseShopConfig(key:'name') }}
                         @endif
+                        <span class="ms-1">
+                            @include('partials._seller-badge', ['badge' => $shopInfoArray['seller_badge'] ?? null])
+                        </span>
                     </div>
                     <div class="d-flex flex-column gap-1">
                         <div class="fs-12">

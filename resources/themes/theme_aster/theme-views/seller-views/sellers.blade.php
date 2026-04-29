@@ -81,6 +81,7 @@
                                     <h6 class="text-truncate mx-auto text-center">
                                         {{ Str::limit($vendor->name, 14) }}
                                     </h6>
+                                    @include('partials._seller-badge', ['badge' => $vendor->seller_badge ?? null])
                                     <p>{{ $vendor['products_count'] < 1000 ? $vendor['products_count'] : number_format($vendor['products_count']/1000 , 1).'K'}} {{translate('products')}}</p>
                                 </div>
                             </a>

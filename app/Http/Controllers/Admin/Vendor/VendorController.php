@@ -9,6 +9,7 @@ use App\Traits\CommonTrait;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Services\ShopService;
+use App\Services\SellerBadgeService;
 use App\Traits\PaginatorTrait;
 use App\Services\VendorService;
 use App\Exports\VendorListExport;
@@ -66,6 +67,7 @@ class VendorController extends BaseController
         private readonly StockClearanceProductRepositoryInterface $stockClearanceProductRepo,
         private readonly StockClearanceSetupRepositoryInterface   $stockClearanceSetupRepo,
         private readonly AdminRepositoryInterface                 $adminRepo,
+        private readonly SellerBadgeService                       $sellerBadgeService,
     )
     {
     }
@@ -82,10 +84,15 @@ class VendorController extends BaseController
         $vendors = $this->vendorRepo->getListWhere(
             orderBy: ['id' => 'desc'],
             searchValue: $request['searchValue'],
-            relations: ['orders', 'product', 'shop'],
+            relations: ['orders', 'product', 'shop', 'badge'],
             dataLimit: getWebConfig(name: WebConfigKey::PAGINATION_LIMIT)
         );
-        return view('admin-views.vendor.index', compact('vendors', 'current_date'));
+        $vendorCollection = method_exists($vendors, 'getCollection') ? $vendors->getCollection() : $vendors;
+        $vendorBadges = collect($vendorCollection)->mapWithKeys(function ($vendor) {
+            return [$vendor->id => $this->sellerBadgeService->getFormattedBadgeForSeller($vendor)];
+        })->all();
+
+        return view('admin-views.vendor.index', compact('vendors', 'current_date', 'vendorBadges'));
     }
 
 
@@ -292,7 +299,7 @@ class VendorController extends BaseController
             params: ['id' => $id, 'withCount' => ['product', 'orders' => function ($query) use ($id) {
                 $query->where(['seller_id' => $id, 'seller_is' => ($id == 0 ? 'admin' : 'seller')]);
             }]],
-            relations: ['orders', 'product']
+            relations: ['orders', 'product', 'shop', 'badge']
         );
 
         if (!$seller) {
@@ -350,8 +357,71 @@ class VendorController extends BaseController
 
         return view('admin-views.vendor.view', [
             'seller' => $seller,
+            'sellerBadge' => $this->sellerBadgeService->getFormattedBadgeForSeller($seller),
             'current_date' => date('Y-m-d'),
         ]);
+    }
+
+    public function getBadgeEvaluation(Request $request, $id): View|RedirectResponse
+    {
+        $seller = $this->vendorRepo->getFirstWhere(
+            params: ['id' => $id],
+            relations: ['shop', 'badge']
+        );
+
+        if (!$seller) {
+            ToastMagic::error(translate('vendor_not_found_It_may_be_deleted'));
+            return redirect()->route('admin.vendors.vendor-list');
+        }
+
+        $badgeEvaluation = $this->sellerBadgeService->getEvaluationData($seller);
+
+        return view('admin-views.vendor.badge-evaluation', compact('seller', 'badgeEvaluation'));
+    }
+
+    public function updateBadge(Request $request, $id): RedirectResponse
+    {
+        $request->validate([
+            'badge_key' => 'required|string',
+            'manual_override_reason' => 'required|string|max:1000',
+        ]);
+
+        $seller = $this->vendorRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$seller) {
+            ToastMagic::error(translate('vendor_not_found_It_may_be_deleted'));
+            return redirect()->route('admin.vendors.vendor-list');
+        }
+
+        try {
+            $this->sellerBadgeService->applyManualBadge(
+                seller: $seller,
+                badgeKey: $request->get('badge_key'),
+                reason: $request->get('manual_override_reason')
+            );
+            ToastMagic::success(translate('badge_updated_successfully'));
+        } catch (Exception $exception) {
+            ToastMagic::error(translate('badge_update_failed'));
+        }
+
+        return redirect()->route('admin.vendors.verification-evaluation', ['id' => $id]);
+    }
+
+    public function restoreAutomaticBadge(Request $request, $id): RedirectResponse
+    {
+        $seller = $this->vendorRepo->getFirstWhere(params: ['id' => $id]);
+        if (!$seller) {
+            ToastMagic::error(translate('vendor_not_found_It_may_be_deleted'));
+            return redirect()->route('admin.vendors.vendor-list');
+        }
+
+        try {
+            $this->sellerBadgeService->restoreAutomaticBadge($seller);
+            ToastMagic::success(translate('automatic_mode_restored_successfully'));
+        } catch (Exception $exception) {
+            ToastMagic::error(translate('badge_update_failed'));
+        }
+
+        return redirect()->route('admin.vendors.verification-evaluation', ['id' => $id]);
     }
 
     public function getOrderListTabView(Request $request, $seller): View

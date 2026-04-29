@@ -749,6 +749,7 @@
                                                         <h2 class="fs-15 mb-2">
                                                             {{ $product->seller->shop->name }}
                                                         </h2>
+                                                        @include('partials._seller-badge', ['badge' => $product->seller?->seller_badge ?? null])
                                                         @if(checkVendorAbility(type: 'vendor', status: 'temporary_close', vendor: $product->seller->shop))
                                                             <span class="badge-danger fs-12 px-3 rounded-full small">
                                                                 <span>{{ translate('Temporary_OFF') }}</span>

@@ -306,7 +306,10 @@
                                         </li>
                                         @foreach($web_config['shops'] as $shop)
                                             <li>
-                                                <a href="{{route('shopView',['slug' => $shop['slug']])}}">{{Str::limit($shop->name, 14)}}</a>
+                                                <a href="{{route('shopView',['slug' => $shop['slug']])}}">
+                                                    {{Str::limit($shop->name, 14)}}
+                                                    @include('partials._seller-badge', ['badge' => $shop->seller_badge ?? null])
+                                                </a>
                                             </li>
                                         @endforeach
                                         <li>
@@ -527,6 +530,7 @@
                                                             <div class="media-body text-truncate width--7rem"
                                                                  title="{{ $shop->name }}">
                                                                 {{Str::limit($shop->name, 14)}}
+                                                                @include('partials._seller-badge', ['badge' => $shop->seller_badge ?? null])
                                                             </div>
                                                         </a>
                                                     @endforeach

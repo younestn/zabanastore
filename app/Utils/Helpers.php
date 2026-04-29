@@ -188,6 +188,14 @@ class Helpers
             ];
         }
         $data['variation'] = $variation;
+        $data['seller_badge'] = null;
+        if (($data['added_by'] ?? null) === 'seller' && !empty($data['user_id'])) {
+            try {
+                $data['seller_badge'] = app(\App\Services\SellerBadgeService::class)->getFormattedBadgeForSellerId((int)$data['user_id']);
+            } catch (\Throwable) {
+                $data['seller_badge'] = null;
+            }
+        }
 
         return $data;
     }
@@ -252,6 +260,14 @@ class Helpers
             ];
         }
         $data['variation'] = $variation;
+        $data['seller_badge'] = null;
+        if (($data['added_by'] ?? null) === 'seller' && !empty($data['user_id'])) {
+            try {
+                $data['seller_badge'] = app(\App\Services\SellerBadgeService::class)->getFormattedBadgeForSellerId((int)$data['user_id']);
+            } catch (\Throwable) {
+                $data['seller_badge'] = null;
+            }
+        }
         return $data;
     }
 
@@ -1030,5 +1046,4 @@ if (!function_exists('currency_converter')) {
         return Helpers::set_symbol(round($amount * $rate, 2));
     }
 }
-
 

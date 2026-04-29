@@ -385,6 +385,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
 
             Route::post('sales-commission-update/{id}', 'updateSalesCommission')->name('sales-commission-update');
             Route::get('order-details/{order_id}/{vendor_id}', 'getOrderDetailsView')->name('order-details');
+            Route::get('verification-evaluation/{id}', 'getBadgeEvaluation')->name('verification-evaluation');
+            Route::post('badge-update/{id}', 'updateBadge')->name('badge-update');
+            Route::post('badge-restore-automatic/{id}', 'restoreAutomaticBadge')->name('badge-restore-automatic');
             Route::get('view/{id}/{tab?}', 'getView')->name('view');
             Route::post( 'update_setting/{id}', 'updateSetting')->name('update-setting');
 

@@ -91,6 +91,16 @@ class Seller extends Authenticatable
         return $this->hasOne(Shop::class, 'seller_id');
     }
 
+    public function badge(): HasOne
+    {
+        return $this->hasOne(SellerBadge::class, 'seller_id');
+    }
+
+    public function badgeHistories(): HasMany
+    {
+        return $this->hasMany(SellerBadgeHistory::class, 'seller_id');
+    }
+
     public function shops(): HasMany
     {
         return $this->hasMany(Shop::class, 'seller_id');
@@ -131,7 +141,12 @@ class Seller extends Authenticatable
         return $this->storageLink('seller', $value, $storage['value'] ?? 'public');
     }
 
-    protected $appends = ['image_full_url'];
+    protected $appends = ['image_full_url', 'seller_badge'];
+
+    public function getSellerBadgeAttribute(): ?array
+    {
+        return app(\App\Services\SellerBadgeService::class)->getFormattedBadgeForSeller($this);
+    }
 
     public function commissionInvoices(): HasMany
 {

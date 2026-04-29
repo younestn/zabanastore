@@ -54,6 +54,7 @@
                                                             <a class="shop-name"
                                                                href="{{isset($item->seller->shop) ? route('shopView',['slug'=>$item->seller->shop['slug']]) : 'javascript:'}} ">
                                                                 {{ isset($item->seller->shop) ? $item->seller->shop->name : translate('shop_not_found') }}
+                                                                @include('partials._seller-badge', ['badge' => $item->seller?->seller_badge ?? null])
                                                             </a>
                                                         @endif
                                                     </p>

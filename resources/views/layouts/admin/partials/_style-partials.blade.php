@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="{{ dynamicAsset(path: 'public/assets/backend/admin/css/payment-addon.css') }}">
 @endif
 
-@if($web_config['panel_sidebar_color'])
+@if(!empty($web_config['panel_sidebar_color'] ?? null))
     <style>
         :root,
         [data-bs-theme=light] {

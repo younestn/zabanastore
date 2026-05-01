@@ -337,10 +337,14 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
             });
 
             // MOVED AD-REQUEST ROUTES INSIDE THE SELLER MIDDLEWARE GROUP
-          Route::group(['prefix' => 'ad-request', 'as' => 'ad-request.'], function () {
-    Route::get('create', [VendorAdRequestController::class, 'create'])->name('create');
-    Route::post('store', [VendorAdRequestController::class, 'store'])->name('store');
-});
+            Route::group(['prefix' => 'ad-request', 'as' => 'ad-request.'], function () {
+                Route::get('', [VendorAdRequestController::class, 'index'])->name('index');
+                Route::get('create', [VendorAdRequestController::class, 'create'])->name('create');
+                Route::post('store', [VendorAdRequestController::class, 'store'])->name('store');
+                Route::get('view/{id}', [VendorAdRequestController::class, 'show'])->name('show');
+                Route::get('edit/{id}', [VendorAdRequestController::class, 'edit'])->name('edit');
+                Route::post('update/{id}', [VendorAdRequestController::class, 'update'])->name('update');
+            });
 
             Route::controller(SystemController::class)->group(function () {
                 Route::get('/get-order-data', 'getOrderData')->name('get-order-data');

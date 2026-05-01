@@ -28,6 +28,9 @@ class Notification extends Model
     protected $fillable = [
         'sent_by',
         'sent_to',
+        'user_id',
+        'ad_request_id',
+        'type',
         'title',
         'description',
         'notification_count',
@@ -37,6 +40,9 @@ class Notification extends Model
     protected $casts = [
         'sent_by' => 'string',
         'sent_to' => 'string',
+        'user_id' => 'integer',
+        'ad_request_id' => 'integer',
+        'type' => 'string',
         'title' => 'string',
         'description' => 'string',
         'notification_count' => 'integer',

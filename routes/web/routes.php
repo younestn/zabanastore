@@ -48,6 +48,7 @@ use App\Http\Controllers\Payment_Methods\PaystackController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\VendorShippingListController;
 use App\Http\Controllers\Admin\AdminAdRequestController;
+use App\Http\Controllers\VendorAdRequestController;
 
 
 
@@ -65,18 +66,22 @@ use App\Http\Controllers\Admin\AdminAdRequestController;
 */
 
 // GET route for the form page
-Route::get('/vendor/new-request', [TestController::class, 'index'])
+Route::get('/vendor/new-request', [VendorAdRequestController::class, 'create'])
+    ->middleware(['maintenance_mode', 'seller'])
     ->name('vendor.vendor1.test');
 
 Route::get('/vendor/shipping-list', [VendorShippingListController::class, 'index'])
     ->name('vendor.vendor2.ship');
 
 
-Route::put('admin/ad-requests/{ad_request}', [AdminAdRequestController::class, 'update'])->name('admin.ad-requests.update');
+Route::put('admin/ad-requests/{ad_request}', [AdminAdRequestController::class, 'update'])
+    ->middleware(['admin', 'actch:admin_panel', 'module:promotion_management'])
+    ->name('admin.ad-requests.update');
 
 
 // POST route for form submission
-Route::post('/vendor/ad-request/store', [TestController::class, 'storeAdRequest'])
+Route::post('/vendor/ad-request/store', [VendorAdRequestController::class, 'store'])
+    ->middleware(['maintenance_mode', 'seller'])
     ->name('vendor.ad-request.store');
 
 // Debug route (optional)

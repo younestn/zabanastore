@@ -63,12 +63,12 @@
                                     {{ translate('dashboard') }}
                                 </span>
                             </a>
-  <li class="nav-item {{ Request::is('vendor/new-request*') ? 'active' : '' }}">
+  <li class="nav-item {{ Request::is('vendor/new-request*') || Request::is('vendor/ad-request*') ? 'active' : '' }}">
     <a class="js-navbar-vertical-aside-menu-link nav-link"
-       href="{{ url('/vendor/new-request') }}" title="{{ translate('New Ad Request') }}">
+       href="{{ route('vendor.vendor1.test') }}" title="{{ translate('new_ad_request') }}">
         <i class="tio-add-circle-outlined nav-icon"></i>
         <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
-            {{ translate('New Ad Request') }}
+            {{ translate('new_ad_request') }}
         </span>
     </a>
 </li>

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Session;
 
 @section('content')
     @php($direction = Session::get('direction'))
+    @php($noestCarrierMeta = collect($shippingCarriers ?? [])->firstWhere('carrier_key', 'noest'))
     <div class="content container-fluid">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-2">
             <h2 class="h1 mb-0 text-capitalize d-flex align-items-center gap-2">
@@ -153,8 +154,8 @@ use Illuminate\Support\Facades\Session;
                                 name="api_token"
                                 id="api_token"
                                 class="form-control"
-                                value="{{ old('api_token', $noestShippingCompany->api_token ?? '') }}"
-                                placeholder="{{ translate('enter_NOEST_API_Token') }}"
+                                value="{{ old('api_token') }}"
+                                placeholder="{{ old('api_token') ?: (($noestCarrierMeta['credential_fields'][1]['masked_value'] ?? null) ?: translate('enter_NOEST_API_Token')) }}"
                             >
                         </div>
                     </div>
@@ -190,6 +191,121 @@ use Illuminate\Support\Facades\Session;
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="text-capitalize mb-0 d-flex align-items-center gap-2">
+                <img width="20" src="{{ dynamicAsset(path: 'public/assets/back-end/img/delivery.png') }}" alt="">
+                {{ translate('available_shipping_carriers') }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                @foreach(($shippingCarriers ?? []) as $carrier)
+                    @if(($carrier['carrier_key'] ?? null) !== 'noest')
+                        <div class="col-xl-4 col-md-6">
+                            <div class="border rounded p-3 h-100">
+                                @php($carrierStatusLabel = (int) ($carrier['status'] ?? 0) === 1 ? 'enabled' : 'disabled')
+                                @php($carrierConnectionLabel = (int) ($carrier['is_connected'] ?? 0) === 1 ? 'connected' : 'not_connected')
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <div>
+                                        <h6 class="mb-1">{{ $carrier['display_name'] }}</h6>
+                                        <div class="text-muted fs-12">{{ translate($carrier['integration_status'] ?? 'planned') }}</div>
+                                        @if(!empty($carrier['base_url']))
+                                            <div class="text-muted fs-12">{{ $carrier['base_url'] }}</div>
+                                        @endif
+                                    </div>
+                                    <span class="badge {{ ($carrier['integration_status'] ?? 'planned') === 'supported' ? 'badge-soft-success' : 'badge-soft-warning' }}">
+                                        {{ translate(($carrier['integration_status'] ?? 'planned') === 'supported' ? 'supported' : 'planned') }}
+                                    </span>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <span class="badge {{ (int) ($carrier['status'] ?? 0) === 1 ? 'badge-soft-success' : 'badge-soft-secondary' }}">
+                                        {{ translate($carrierStatusLabel) }}
+                                    </span>
+                                    <span class="badge {{ (int) ($carrier['is_connected'] ?? 0) === 1 ? 'badge-soft-success' : 'badge-soft-danger' }}">
+                                        {{ translate($carrierConnectionLabel) }}
+                                    </span>
+                                </div>
+
+                                @if(!empty($carrier['unsupported_reason']))
+                                    <div class="text-muted fs-12">
+                                        {{ translate($carrier['unsupported_reason']) }}
+                                    </div>
+                                @endif
+
+                                <div class="d-flex flex-wrap gap-2 mt-3 mb-3">
+                                    @if(!empty($carrier['supports_home_delivery']))
+                                        <span class="badge badge-soft-info">{{ translate('home_delivery') }}</span>
+                                    @endif
+                                    @if(!empty($carrier['supports_desk_delivery']))
+                                        <span class="badge badge-soft-info">{{ translate('desk_delivery') }}</span>
+                                    @endif
+                                    @if(!empty($carrier['supports_pickup_point']))
+                                        <span class="badge badge-soft-info">{{ translate('pickup_point') }}</span>
+                                    @endif
+                                </div>
+
+                                <form action="{{ route('vendor.business-settings.shipping-method.carrier-settings', ['carrier' => $carrier['carrier_key']]) }}" method="post">
+                                    @csrf
+
+                                    <div class="row">
+                                        @foreach(($carrier['credential_fields'] ?? []) as $field)
+                                            <div class="col-12">
+                                                <div class="form-group">
+                                                    <label class="title-color" for="{{ $carrier['carrier_key'] . '_' . $field['key'] }}">
+                                                        {{ translate($field['label']) }}
+                                                    </label>
+                                                    <input
+                                                        type="{{ ($field['type'] ?? 'text') === 'password' ? 'password' : 'text' }}"
+                                                        name="{{ $field['key'] }}"
+                                                        id="{{ $carrier['carrier_key'] . '_' . $field['key'] }}"
+                                                        class="form-control"
+                                                        value="{{ old($field['key'], $field['value'] ?? '') }}"
+                                                        placeholder="{{ old($field['key']) ?: (($field['masked_value'] ?? null) ?: translate($field['label'])) }}"
+                                                    >
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    @if(!empty($carrier['credential_fields']))
+                                        <div class="text-muted fs-12 mb-3">
+                                            {{ translate('saved_credentials_are_hidden_for_security') }}
+                                        </div>
+                                    @endif
+
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="submit" class="btn btn--primary btn-sm">
+                                            {{ translate('save_credentials') }}
+                                        </button>
+
+                                        <button
+                                            type="submit"
+                                            formaction="{{ route('vendor.business-settings.shipping-method.carrier-test', ['carrier' => $carrier['carrier_key']]) }}"
+                                            class="btn btn-outline--primary btn-sm"
+                                        >
+                                            {{ translate('test_connection') }}
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <form action="{{ route('vendor.business-settings.shipping-method.carrier-toggle', ['carrier' => $carrier['carrier_key']]) }}" method="post" class="mt-3">
+                                    @csrf
+                                    <input type="hidden" name="status" value="{{ (int) ($carrier['status'] ?? 0) === 1 ? 0 : 1 }}">
+
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                        {{ translate((int) ($carrier['status'] ?? 0) === 1 ? 'disable_carrier' : 'enable_carrier') }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
         </div>
     </div>
 
@@ -387,4 +503,3 @@ use Illuminate\Support\Facades\Session;
 @push('script')
     <script src="{{dynamicAsset(path: 'public/assets/back-end/js/vendor/shipping-method.js')}}"></script>
 @endpush
-

@@ -8,6 +8,7 @@ use App\Models\CartShipping;
 use App\Models\ShippingMethod;
 use App\Models\ShippingType;
 use App\Models\Wilaya;
+use App\Services\Shipping\ShippingCarrierManager;
 use App\Utils\CartManager;
 use App\Utils\Helpers;
 use App\Utils\OrderManager;
@@ -306,6 +307,63 @@ class ShippingMethodController extends Controller
         }
     }
 
+    public function available_carriers(Request $request, ShippingCarrierManager $shippingCarrierManager): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'seller_id' => 'nullable|integer',
+            'seller_is' => 'nullable|in:admin,seller',
+            'cart_group_id' => 'nullable|string',
+            'wilaya_id' => 'required|integer|exists:wilayas,id',
+            'commune_id' => 'nullable|integer',
+            'delivery_type' => 'nullable|in:home_delivery,desk_delivery,pickup_point',
+            'address' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->errors()->count() > 0) {
+            return response()->json(['errors' => Helpers::validationErrorProcessor($validator)], 422);
+        }
+
+        $sellerId = $request->input('seller_id');
+        $sellerIs = $request->input('seller_is');
+        $cartGroupId = $request->input('cart_group_id');
+
+        if ((!$sellerId && $sellerId !== 0) || !$sellerIs) {
+            if ($cartGroupId) {
+                $cartItem = Cart::where('cart_group_id', $cartGroupId)
+                    ->where('is_checked', 1)
+                    ->first();
+
+                if ($cartItem) {
+                    $sellerIs = $cartItem->seller_is;
+                    $sellerId = $cartItem->seller_id;
+                }
+            }
+        }
+
+        if ((!$sellerId && $sellerId !== 0) || !$sellerIs) {
+            return response()->json(['message' => translate('data_not_found')], 422);
+        }
+
+        $wilaya = Wilaya::find($request->input('wilaya_id'));
+        if (!$wilaya) {
+            return response()->json(['message' => translate('invalid_shipping_location')], 422);
+        }
+
+        $availableCarriers = $shippingCarrierManager->getAvailableCarriersForSeller((int)$sellerId, [
+            'seller_id' => (int)$sellerId,
+            'seller_is' => $sellerIs === 'admin' ? 'admin' : 'seller',
+            'cart_group_id' => $cartGroupId,
+            'wilaya_id' => (int)$wilaya->id,
+            'wilaya_code' => (string)$wilaya->code,
+            'wilaya_name' => (string)$wilaya->name,
+            'commune_id' => $request->input('commune_id'),
+            'delivery_type' => $request->input('delivery_type'),
+            'address' => $request->input('address'),
+        ]);
+
+        return response()->json($availableCarriers, 200);
+    }
+
     public function choose_for_order(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -315,14 +373,20 @@ class ShippingMethodController extends Controller
 
             'seller_id' => 'nullable|integer',
             'seller_is' => 'nullable|in:admin,seller',
+            'carrier_key' => 'nullable|string|max:100',
+            'carrier_name' => 'nullable|string|max:255',
             'shipping_company' => 'nullable|string|max:255',
-            'delivery_type' => 'nullable|in:home_delivery,desk_delivery',
+            'delivery_type' => 'nullable|in:home_delivery,desk_delivery,pickup_point',
+            'remote_delivery_type' => 'nullable|integer',
             'wilaya_id' => 'nullable|integer|exists:wilayas,id',
             'wilaya_name' => 'nullable|string|max:255',
+            'commune_id' => 'nullable|integer',
             'station_code' => 'nullable|string|max:255',
             'station_name' => 'nullable|string|max:255',
+            'pickup_point_id' => 'nullable',
             'baladiya_name' => 'nullable|string|max:255',
             'estimated_days' => 'nullable|string|max:255',
+            'delivery_option_payload' => 'nullable|array',
             'is_noest' => 'nullable|in:0,1',
         ], [
             'id.required' => translate('shipping_id_is_required')
@@ -376,6 +440,7 @@ class ShippingMethodController extends Controller
 
         $shippingId = (int) $request['id'];
         $isNoest = (int) $request->input('is_noest', 0) === 1;
+        $carrierKey = strtolower((string) $request->input('carrier_key', ''));
 
         $shipping['cart_group_id'] = $request['cart_group_id'];
         $shipping['shipping_method_id'] = $shippingId;
@@ -434,6 +499,8 @@ class ShippingMethodController extends Controller
 
             $shipping['extra_data'] = [
                 'is_noest' => 1,
+                'carrier_key' => 'noest',
+                'carrier_name' => 'NOEST',
                 'shipping_company' => $request->input('shipping_company', 'Noest'),
                 'delivery_type' => $request->input('delivery_type'),
                 'wilaya_id' => $request->filled('wilaya_id') ? (int) $request->input('wilaya_id') : null,
@@ -441,8 +508,34 @@ class ShippingMethodController extends Controller
                 'wilaya_name' => $request->input('wilaya_name') ?: $wilaya?->name,
                 'station_code' => $request->input('station_code'),
                 'station_name' => $request->input('station_name'),
+                'desk_code' => $request->input('station_code'),
+                'desk_name' => $request->input('station_name'),
                 'baladiya_name' => $request->input('baladiya_name'),
                 'estimated_days' => $request->input('estimated_days'),
+            ];
+        } elseif ($carrierKey !== '') {
+            $wilaya = $request->filled('wilaya_id') ? Wilaya::find($request->input('wilaya_id')) : null;
+
+            $shipping['extra_data'] = [
+                'is_noest' => 0,
+                'carrier_key' => $carrierKey,
+                'carrier_name' => $request->input('carrier_name') ?: $request->input('shipping_company'),
+                'shipping_company' => $request->input('shipping_company') ?: $request->input('carrier_name'),
+                'delivery_type' => $request->input('delivery_type'),
+                'remote_delivery_type' => $request->input('remote_delivery_type'),
+                'wilaya_id' => $request->filled('wilaya_id') ? (int) $request->input('wilaya_id') : null,
+                'wilaya_code' => $wilaya?->code,
+                'wilaya_name' => $request->input('wilaya_name') ?: $wilaya?->name,
+                'commune_id' => $request->input('commune_id'),
+                'station_code' => $request->input('station_code'),
+                'station_name' => $request->input('station_name'),
+                'desk_code' => $request->input('station_code'),
+                'desk_name' => $request->input('station_name'),
+                'pickup_point_id' => $request->input('pickup_point_id'),
+                'baladiya_name' => $request->input('baladiya_name'),
+                'estimated_days' => $request->input('estimated_days'),
+                'shipping_cost' => $shipping['shipping_cost'],
+                'delivery_option_payload' => $request->input('delivery_option_payload'),
             ];
         } else {
             $shipping['extra_data'] = null;

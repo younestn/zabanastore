@@ -313,7 +313,10 @@ Route::group(['middleware' => ['maintenance_mode', 'actch:admin_panel']], functi
                         Route::post(ShippingMethod::UPDATE_STATUS[URI], 'updateStatus')->name('update-status');
                         Route::post(ShippingMethod::DELETE[URI], 'delete')->name('delete');
                         Route::post('noest-settings', 'updateNoestSettings')->name('noest-settings');
-                         Route::post('test-noest-connection', 'testNoestConnection')->name('test-noest-connection');
+                        Route::post('test-noest-connection', 'testNoestConnection')->name('test-noest-connection');
+                        Route::post('carrier-settings/{carrier}', 'updateCarrierSettings')->name('carrier-settings');
+                        Route::post('carrier-test/{carrier}', 'testCarrierConnection')->name('carrier-test');
+                        Route::post('carrier-toggle/{carrier}', 'toggleCarrier')->name('carrier-toggle');
                     });
                 });
                 Route::group(['prefix' => 'shipping-type', 'as' => 'shipping-type.'], function () {

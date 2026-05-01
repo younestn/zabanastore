@@ -861,16 +861,59 @@ $billingAddressData = $billingAddress
     }
 
     $shippingExtraData = is_array($shippingExtraData) ? $shippingExtraData : [];
+    $selectedCarrierKey = Str::lower((string) ($shippingExtraData['carrier_key'] ?? ''));
 
     $hasCartStoredNoestData = (int)($shippingExtraData['is_noest'] ?? 0) === 1;
+    $hasGenericCarrierData = !$hasCartStoredNoestData && $selectedCarrierKey !== '';
 
     $hasLegacySessionNoestData = !$hasCartStoredNoestData
         && (int)($cartData['shipping_method_id'] ?? 0) === 0
         && session()->has('selected_wilaya_id')
         && session()->has('selected_delivery_method');
 
-    if (!$hasCartStoredNoestData && !$hasLegacySessionNoestData) {
+    if (!$hasCartStoredNoestData && !$hasLegacySessionNoestData && !$hasGenericCarrierData) {
         return [
+            'carrier_key' => null,
+            'carrier_name' => null,
+            'delivery_type' => null,
+            'remote_delivery_type' => null,
+            'desk_code' => null,
+            'desk_name' => null,
+            'pickup_point_id' => null,
+            'delivery_option_payload' => null,
+            'wilaya_id' => null,
+            'wilaya_code' => null,
+            'wilaya_name' => null,
+            'commune_id' => null,
+            'baladiya_name' => null,
+            'is_noest' => 0,
+            'noest_wilaya_id' => null,
+            'noest_wilaya_code' => null,
+            'noest_wilaya_name' => null,
+            'noest_baladiya_id' => null,
+            'noest_baladiya_name' => null,
+            'noest_delivery_method' => null,
+            'noest_station_code' => null,
+            'noest_station_name' => null,
+        ];
+    }
+
+    if ($hasGenericCarrierData) {
+        return [
+            'carrier_key' => $selectedCarrierKey,
+            'carrier_name' => $shippingExtraData['carrier_name'] ?? $shippingExtraData['shipping_company'] ?? null,
+            'delivery_type' => $shippingExtraData['delivery_type'] ?? null,
+            'remote_delivery_type' => $shippingExtraData['remote_delivery_type'] ?? null,
+            'desk_code' => $shippingExtraData['desk_code'] ?? $shippingExtraData['station_code'] ?? null,
+            'desk_name' => $shippingExtraData['desk_name'] ?? $shippingExtraData['station_name'] ?? null,
+            'pickup_point_id' => $shippingExtraData['pickup_point_id'] ?? null,
+            'delivery_option_payload' => $shippingExtraData['delivery_option_payload'] ?? null,
+            'wilaya_id' => $shippingExtraData['wilaya_id'] ?? null,
+            'wilaya_code' => $shippingExtraData['wilaya_code'] ?? null,
+            'wilaya_name' => $shippingExtraData['wilaya_name'] ?? null,
+            'commune_id' => $shippingExtraData['commune_id'] ?? null,
+            'baladiya_name' => $shippingExtraData['baladiya_name'] ?? null,
+            'is_noest' => 0,
             'noest_wilaya_id' => null,
             'noest_wilaya_code' => null,
             'noest_wilaya_name' => null,
@@ -905,6 +948,16 @@ $billingAddressData = $billingAddress
         : (string)(session('selected_delivery_method') ?? '');
 
     return [
+        'carrier_key' => 'noest',
+        'carrier_name' => 'NOEST',
+        'delivery_type' => $selectedDeliveryMethod !== '' ? $selectedDeliveryMethod : null,
+        'desk_code' => $selectedStationCode !== '' ? $selectedStationCode : null,
+        'desk_name' => $selectedStationName !== '' ? $selectedStationName : null,
+        'wilaya_id' => $selectedWilaya?->id ?? (is_numeric($selectedWilayaId) ? (int)$selectedWilayaId : null),
+        'wilaya_code' => $shippingExtraData['wilaya_code'] ?? $selectedWilaya?->code,
+        'wilaya_name' => $shippingExtraData['wilaya_name'] ?? $selectedWilaya?->name,
+        'baladiya_name' => $selectedBaladiyaName !== '' ? $selectedBaladiyaName : null,
+        'is_noest' => 1,
         'noest_wilaya_id' => $selectedWilaya?->id ?? (is_numeric($selectedWilayaId) ? (int)$selectedWilayaId : null),
         'noest_wilaya_code' => $shippingExtraData['wilaya_code'] ?? $selectedWilaya?->code,
         'noest_wilaya_name' => $shippingExtraData['wilaya_name'] ?? $selectedWilaya?->name,

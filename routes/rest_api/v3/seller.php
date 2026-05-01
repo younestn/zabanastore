@@ -19,6 +19,7 @@ use App\Http\Controllers\RestAPI\v3\seller\RefundController;
 use App\Http\Controllers\RestAPI\v3\seller\SellerController;
 use App\Http\Controllers\RestAPI\v3\seller\shippingController;
 use App\Http\Controllers\RestAPI\v3\seller\ShippingMethodController;
+use App\Http\Controllers\RestAPI\v3\seller\ShippingCarrierController;
 use App\Http\Controllers\RestAPI\v3\seller\ShopController;
 use App\Http\Controllers\RestAPI\v3\seller\VendorPaymentInfoController;
 use Illuminate\Support\Facades\Route;
@@ -197,6 +198,17 @@ Route::post('test-noest-connection', 'test_noest_connection');
             });
         });
 
+        Route::group(['prefix' => 'shipping-carriers'], function () {
+            Route::controller(ShippingCarrierController::class)->group(function () {
+                Route::get('/', 'index');
+                Route::get('settings', 'settings');
+                Route::get('{carrier}/settings', 'show');
+                Route::post('{carrier}/settings', 'store');
+                Route::post('{carrier}/test-connection', 'testConnection');
+                Route::post('{carrier}/toggle', 'toggle');
+            });
+        });
+
         Route::group(['prefix' => 'messages'], function () {
             Route::controller(ChatController::class)->group(function () {
                 Route::get('list/{type}', 'list');
@@ -287,3 +299,6 @@ Route::post('test-noest-connection', 'test_noest_connection');
     // Route::post('ls-lib-update', 'LsLibController@lib_update');
 });
 
+Route::group(['prefix' => 'v3/shipping', 'middleware' => ['api_lang', 'apiGuestCheck']], function () {
+    Route::match(['get', 'post'], 'available-carriers', [\App\Http\Controllers\RestAPI\v1\ShippingMethodController::class, 'available_carriers']);
+});

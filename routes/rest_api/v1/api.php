@@ -98,6 +98,7 @@ Route::group(['namespace' => 'RestAPI\v1', 'prefix' => 'v1', 'middleware' => ['a
     Route::controller(ShippingMethodController::class)->group(function () {
         Route::get('detail/{id}', 'get_shipping_method_info');
         Route::get('by-seller/{id}/{seller_is}', 'shipping_methods_by_seller');
+        Route::match(['get', 'post'], 'available-carriers', 'available_carriers');
         Route::post('choose-for-order', 'choose_for_order');
         Route::get('chosen', 'chosen_shipping_methods');
         Route::get('check-shipping-type', 'check_shipping_type');

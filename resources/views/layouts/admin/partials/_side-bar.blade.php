@@ -35,10 +35,10 @@
             </li>
   <li>
     <a class="nav-link {{ Request::is('admin/ad-requests*') ? 'active' : '' }}"
-       title="{{ translate('Services_Requests') }}" href="{{ route('admin.ad-requests.index') }}">
+       title="{{ translate('ad_requests') }}" href="{{ route('admin.ad-requests.index') }}">
         <i class="fi fi-sr-document"></i>
         <span class="aside-mini-hidden-element text-truncate">
-            {{ translate('Services Requests list') }}
+            {{ translate('ad_requests') }}
         </span>
     </a>
 </li>

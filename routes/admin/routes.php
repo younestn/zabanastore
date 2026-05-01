@@ -1176,9 +1176,16 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin', '
         });
     });
 
-    Route::group(['prefix' => 'ad-requests', 'as' => 'ad-requests.', 'middleware' => ['module:promotion_management']], function() {
+Route::group(['prefix' => 'ad-requests', 'as' => 'ad-requests.', 'middleware' => ['module:promotion_management']], function() {
     Route::controller(\App\Http\Controllers\Admin\AdminAdRequestController::class)->group(function() {
         Route::get('/', 'index')->name('index');
+        Route::post('settings', 'updatePaymentSettings')->name('settings');
+        Route::get('pricing', 'pricingIndex')->name('pricing.index');
+        Route::get('pricing/edit/{id}', 'pricingIndex')->name('pricing.edit');
+        Route::post('pricing/store', 'storePricingPlan')->name('pricing.store');
+        Route::post('pricing/update/{id}', 'updatePricingPlan')->name('pricing.update');
+        Route::post('pricing/status/{id}', 'updatePricingPlanStatus')->name('pricing.status');
+        Route::delete('pricing/delete/{id}', 'deletePricingPlan')->name('pricing.delete');
         Route::get('{id}', 'show')->name('show');
         Route::post('{id}/approve', 'approve')->name('approve');
         Route::post('{id}/reject', 'reject')->name('reject');

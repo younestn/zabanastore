@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use App\Http\Requests\Vendor\ShippingMethodRequest;
 use App\Services\CategoryShippingCostService;
+use App\Services\Shipping\ShippingCarrierManager;
 use App\Services\ShippingMethodService;
 use Devrabiul\ToastMagic\Facades\ToastMagic;
 use Illuminate\Contracts\View\View;
@@ -60,6 +61,7 @@ class ShippingMethodController extends BaseController
 {
     $shippingMethod = getWebConfig(name: 'shipping_method');
     $vendorId = auth('seller')->id();
+    $shippingCarriers = app(ShippingCarrierManager::class)->listVendorCarriers($vendorId);
 
     $noestShippingCompany = DB::table('vendor_shipping_companies')
         ->where('vendor_id', $vendorId)
@@ -104,7 +106,7 @@ class ShippingMethodController extends BaseController
 
         return view(
             ShippingMethod::INDEX[VIEW],
-            compact('shippingMethods', 'allCategoryShippingCost', 'shippingType', 'noestShippingCompany')
+            compact('shippingMethods', 'allCategoryShippingCost', 'shippingType', 'noestShippingCompany', 'shippingCarriers')
         );
     } else {
         return redirect()->route(Dashboard::INDEX[ROUTE]);
@@ -169,45 +171,31 @@ class ShippingMethodController extends BaseController
         return redirect()->back();
     }
 
-    public function updateNoestSettings(Request $request): RedirectResponse
+public function updateNoestSettings(Request $request): RedirectResponse
 {
     $request->validate([
         'noest_guid' => ['nullable', 'string', 'max:255'],
         'api_token' => ['nullable', 'string', 'max:255'],
     ]);
 
-    if ($request->boolean('status') && (!$request->filled('noest_guid') || !$request->filled('api_token'))) {
+    $shippingCarrierManager = app(ShippingCarrierManager::class);
+    $vendorId = auth('seller')->id();
+    $existingRecord = $shippingCarrierManager->getVendorCarrier($vendorId, 'noest');
+    $existingCredentials = $shippingCarrierManager->getVendorCarrierCredentials($existingRecord);
+
+    $resolvedGuid = $request->filled('noest_guid') ? $request->input('noest_guid') : ($existingCredentials['noest_guid'] ?? null);
+    $resolvedToken = $request->filled('api_token') ? $request->input('api_token') : ($existingCredentials['api_token'] ?? null);
+
+    if ($request->boolean('status') && (empty($resolvedGuid) || empty($resolvedToken))) {
         Toastr::error(translate('please_add_noest_guid_and_api_token_before_enabling_noest'));
         return redirect()->back()->withInput();
     }
 
-    $vendorId = auth('seller')->id();
-
-    $noestShippingCompany = DB::table('vendor_shipping_companies')
-        ->where('vendor_id', $vendorId)
-        ->whereRaw('LOWER(name) = ?', ['noest'])
-        ->first();
-
-    $data = [
-        'vendor_id' => $vendorId,
-        'name' => 'Noest',
-        'website' => 'noest-dz.com',
-        'noest_guid' => $request->input('noest_guid'),
-        'api_token' => $request->input('api_token'),
+    $shippingCarrierManager->saveVendorCarrierSettings($vendorId, 'noest', [
+        'noest_guid' => $request->filled('noest_guid') ? $request->input('noest_guid') : ($existingCredentials['noest_guid'] ?? null),
+        'api_token' => $request->filled('api_token') ? $request->input('api_token') : ($existingCredentials['api_token'] ?? null),
         'status' => $request->boolean('status') ? 1 : 0,
-        'updated_at' => now(),
-    ];
-
-    if ($noestShippingCompany) {
-        DB::table('vendor_shipping_companies')
-            ->where('id', $noestShippingCompany->id)
-            ->update($data);
-    } else {
-        $data['connected_since'] = null;
-        $data['created_at'] = now();
-
-        DB::table('vendor_shipping_companies')->insert($data);
-    }
+    ]);
 
     Toastr::success(translate('NOEST_settings_updated_successfully'));
     return redirect()->back();
@@ -216,59 +204,28 @@ class ShippingMethodController extends BaseController
 public function testNoestConnection(Request $request): RedirectResponse
 {
     $request->validate([
-        'noest_guid' => ['required', 'string', 'max:255'],
-        'api_token' => ['required', 'string', 'max:255'],
+        'noest_guid' => ['nullable', 'string', 'max:255'],
+        'api_token' => ['nullable', 'string', 'max:255'],
     ]);
 
     try {
-        $response = Http::timeout(15)
-            ->acceptJson()
-            ->withToken($request->input('api_token'))
-            ->get('https://app.noest-dz.com/api/public/get/wilayas', [
-                'user_guid' => $request->input('noest_guid'),
-            ]);
+        $vendorId = auth('seller')->id();
+        $shippingCarrierManager = app(ShippingCarrierManager::class);
+        $result = $shippingCarrierManager->testVendorCarrierConnection($vendorId, 'noest', [
+            'noest_guid' => $request->input('noest_guid'),
+            'api_token' => $request->input('api_token'),
+            'status' => $request->boolean('status') ? 1 : 0,
+        ]);
 
-        $responseData = $response->json();
-
-        $isConnected = $response->successful() && is_array($responseData) && count($responseData) > 0;
-
-        if (!$isConnected) {
+        if (!($result['success'] ?? false)) {
             Toastr::error(translate('unable_to_connect_with_NOEST_please_check_GUID_and_API_token'));
             return redirect()->back()
                 ->withInput()
                 ->with('noest_connection_status', 0);
         }
 
-        $vendorId = auth('seller')->id();
-
-        $noestShippingCompany = DB::table('vendor_shipping_companies')
-            ->where('vendor_id', $vendorId)
-            ->whereRaw('LOWER(name) = ?', ['noest'])
-            ->first();
-
-        $data = [
-            'vendor_id' => $vendorId,
-            'name' => 'Noest',
-            'website' => 'noest-dz.com',
-            'noest_guid' => $request->input('noest_guid'),
-            'api_token' => $request->input('api_token'),
-            'status' => $request->boolean('status') ? 1 : ($noestShippingCompany->status ?? 0),
-            'connected_since' => now()->toDateString(),
-            'updated_at' => now(),
-        ];
-
-        if ($noestShippingCompany) {
-            DB::table('vendor_shipping_companies')
-                ->where('id', $noestShippingCompany->id)
-                ->update($data);
-        } else {
-            $data['created_at'] = now();
-            DB::table('vendor_shipping_companies')->insert($data);
-        }
-
         Toastr::success(translate('NOEST_connection_successful'));
         return redirect()->back()->with('noest_connection_status', 1);
-
     } catch (\Throwable $exception) {
         Toastr::error(translate('unable_to_connect_with_NOEST_please_check_GUID_and_API_token'));
         return redirect()->back()
@@ -276,4 +233,43 @@ public function testNoestConnection(Request $request): RedirectResponse
             ->with('noest_connection_status', 0);
     }
 }
+
+    public function updateCarrierSettings(Request $request, string $carrier): RedirectResponse
+    {
+        $vendorId = auth('seller')->id();
+        app(ShippingCarrierManager::class)->saveVendorCarrierSettings($vendorId, $carrier, $request->all());
+
+        Toastr::success(translate('credentials_saved_successfully'));
+        return redirect()->back();
+    }
+
+    public function testCarrierConnection(Request $request, string $carrier): RedirectResponse
+    {
+        $vendorId = auth('seller')->id();
+        $result = app(ShippingCarrierManager::class)->testVendorCarrierConnection($vendorId, $carrier, $request->all());
+
+        if ($result['success'] ?? false) {
+            Toastr::success(translate($result['message'] ?? 'connection_test_successful'));
+        } else {
+            Toastr::error(translate($result['message'] ?? 'connection_test_failed'));
+        }
+
+        return redirect()->back();
+    }
+
+    public function toggleCarrier(Request $request, string $carrier): RedirectResponse
+    {
+        $request->validate([
+            'status' => ['required', 'in:0,1'],
+        ]);
+
+        app(ShippingCarrierManager::class)->toggleVendorCarrier(
+            auth('seller')->id(),
+            $carrier,
+            (bool)$request->input('status')
+        );
+
+        Toastr::success(translate('successfully_status_updated'));
+        return redirect()->back();
+    }
 }

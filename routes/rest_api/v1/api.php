@@ -7,6 +7,7 @@ use App\Http\Controllers\RestAPI\v1\auth\PassportAuthController;
 use App\Http\Controllers\RestAPI\v1\auth\PhoneVerificationController;
 use App\Http\Controllers\RestAPI\v1\auth\SocialAuthController;
 use App\Http\Controllers\RestAPI\v1\BannerController;
+use App\Http\Controllers\RestAPI\v1\AdRequestController;
 use App\Http\Controllers\RestAPI\v1\BrandController;
 use App\Http\Controllers\RestAPI\v1\CartController;
 use App\Http\Controllers\RestAPI\v1\CategoryController;
@@ -98,6 +99,7 @@ Route::group(['namespace' => 'RestAPI\v1', 'prefix' => 'v1', 'middleware' => ['a
     Route::controller(ShippingMethodController::class)->group(function () {
         Route::get('detail/{id}', 'get_shipping_method_info');
         Route::get('by-seller/{id}/{seller_is}', 'shipping_methods_by_seller');
+        Route::match(['get', 'post'], 'available-carriers', 'available_carriers');
         Route::post('choose-for-order', 'choose_for_order');
         Route::get('chosen', 'chosen_shipping_methods');
         Route::get('check-shipping-type', 'check_shipping_type');
@@ -384,6 +386,14 @@ Route::group(['namespace' => 'RestAPI\v1', 'prefix' => 'v1', 'middleware' => ['a
     Route::group(['prefix' => 'banners'], function () {
         Route::controller(BannerController::class)->group(function () {
             Route::get('/', 'getBannerList');
+        });
+    });
+
+    Route::group(['prefix' => 'ad-requests'], function () {
+        Route::controller(AdRequestController::class)->group(function () {
+            Route::get('active', 'active')->name('api.v1.ad-requests.active');
+            Route::post('{id}/impression', 'impression')->middleware('throttle:60,1')->name('api.v1.ad-requests.impression');
+            Route::post('{id}/click', 'click')->middleware('throttle:60,1')->name('api.v1.ad-requests.click');
         });
     });
 

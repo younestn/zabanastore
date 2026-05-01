@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\DTO\Shipping\ShipmentCreateResult;
 use App\Models\Order;
+use App\Services\Shipping\ShippingCarrierManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -12,83 +14,21 @@ class ShippingOrderService
 {
     public static function createShipment(Order $order): void
     {
-        if (!self::shouldCreateNoestShipment($order)) {
+        $shippingCarrierManager = app(ShippingCarrierManager::class);
+        $shippingMeta = $shippingCarrierManager->extractOrderShippingMeta($order);
+        $hasLegacyNoestSelection = self::shouldCreateNoestShipment($order);
+
+        if (empty($shippingMeta['carrier_key']) && !$hasLegacyNoestSelection) {
             return;
         }
 
-        $vendorNoest = self::getVendorNoestConfig($order);
-        if (!$vendorNoest) {
+        $shipmentResult = $shippingCarrierManager->createShipmentForOrder($order);
+
+        if (!$shipmentResult->supported && !$hasLegacyNoestSelection) {
             return;
         }
 
-        $payload = self::buildNoestPayload($order, $vendorNoest);
-                if (!$payload) {
-            Log::warning('NOEST payload generation failed', [
-                'order_id' => $order->id,
-                'shipping_address_data' => $order->shipping_address_data,
-            ]);
-
-            self::persistShipmentData(
-                order: $order,
-                tracking: null,
-                status: 'failed',
-                payload: [],
-                response: ['message' => 'Invalid NOEST payload'],
-                error: 'Invalid NOEST payload'
-            );
-            return;
-        }
-
-        try {
-            $httpResponse = Http::timeout(15)
-                ->connectTimeout(5)
-                ->acceptJson()
-                ->withToken($vendorNoest->api_token)
-                ->asForm()
-                ->post('https://app.noest-dz.com/api/public/create/order', $payload);
-
-            $responseData = $httpResponse->json() ?? [];
-            $tracking = self::extractTracking($responseData);
-
-            $success = $httpResponse->successful()
-                && (($responseData['success'] ?? true) === true);
-
-                            Log::info('NOEST create shipment response', [
-                'order_id' => $order->id,
-                'http_status' => $httpResponse->status(),
-                'success' => $success,
-                'tracking' => $tracking,
-                'reference' => $payload['reference'] ?? null,
-                'user_guid' => $payload['user_guid'] ?? null,
-                'wilaya_id' => $payload['wilaya_id'] ?? null,
-                'commune' => $payload['commune'] ?? null,
-                'stop_desk' => $payload['stop_desk'] ?? null,
-                'response' => $responseData,
-            ]);
-
-            self::persistShipmentData(
-                order: $order,
-                tracking: $tracking,
-                status: $success ? 'created' : 'failed',
-                payload: $payload,
-                response: $responseData,
-                error: $success ? null : ($responseData['message'] ?? 'NOEST create order failed')
-            );
-        } catch (\Throwable $exception) {
-            Log::error('NOEST create shipment failed', [
-                'order_id' => $order->id,
-                'message' => $exception->getMessage(),
-            ]);
-
-            self::persistShipmentData(
-                order: $order,
-                tracking: null,
-                status: 'failed',
-                payload: $payload,
-                response: [],
-                error: $exception->getMessage()
-            );
-        }
+        self::persistShipmentResult($order, $shipmentResult);
     }
 
         private static function shouldCreateNoestShipment(Order $order): bool
@@ -282,6 +222,73 @@ return ($order->shipping_type ?? '') === 'order_wise'
             'shipment_response' => json_encode($response, JSON_UNESCAPED_UNICODE),
             'response_payload' => json_encode($response, JSON_UNESCAPED_UNICODE),
             'error_message' => $error,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $filteredData = [];
+        foreach ($candidateData as $column => $value) {
+            if (in_array($column, $columns)) {
+                $filteredData[$column] = $value;
+            }
+        }
+
+        if (!empty($filteredData)) {
+            DB::table('order_shipping_details')->updateOrInsert(
+                ['order_id' => $order->id],
+                $filteredData
+            );
+        }
+    }
+
+    private static function persistShipmentResult(Order $order, ShipmentCreateResult $shipmentResult): void
+    {
+        $carrierName = $shipmentResult->carrierName ?: ($shipmentResult->carrierKey ? strtoupper($shipmentResult->carrierKey) : null);
+        $deliveryType = $shipmentResult->deliveryType ?: 'home_delivery';
+
+        if ($carrierName) {
+            $order->delivery_service_name = $carrierName;
+            $order->delivery_type = $deliveryType;
+        }
+
+        if ($shipmentResult->trackingNumber) {
+            $order->third_party_delivery_tracking_id = $shipmentResult->trackingNumber;
+        }
+
+        $order->save();
+
+        if (!Schema::hasTable('order_shipping_details')) {
+            return;
+        }
+
+        $columns = Schema::getColumnListing('order_shipping_details');
+        if (!in_array('order_id', $columns)) {
+            return;
+        }
+
+        $candidateData = [
+            'order_id' => $order->id,
+            'seller_id' => $order->seller_id,
+            'carrier_key' => $shipmentResult->carrierKey,
+            'carrier_name' => $carrierName,
+            'tracking_number' => $shipmentResult->trackingNumber,
+            'tracking_id' => $shipmentResult->trackingNumber,
+            'tracking' => $shipmentResult->trackingNumber,
+            'remote_order_id' => $shipmentResult->remoteOrderId,
+            'remote_display_id' => $shipmentResult->remoteDisplayId,
+            'delivery_price' => $shipmentResult->deliveryPrice,
+            'delivery_service_name' => $carrierName,
+            'service_name' => $carrierName,
+            'delivery_type' => $deliveryType,
+            'shipping_status' => $shipmentResult->shippingStatus,
+            'status' => $shipmentResult->shippingStatus,
+            'shipment_payload' => json_encode($shipmentResult->payload, JSON_UNESCAPED_UNICODE),
+            'request_payload' => json_encode($shipmentResult->payload, JSON_UNESCAPED_UNICODE),
+            'shipment_response' => json_encode($shipmentResult->response, JSON_UNESCAPED_UNICODE),
+            'response_payload' => json_encode($shipmentResult->response, JSON_UNESCAPED_UNICODE),
+            'error_message' => $shipmentResult->errorMessage,
+            'desk_code' => $shipmentResult->payload['station_code'] ?? $shipmentResult->payload['desk_code'] ?? null,
+            'desk_name' => $shipmentResult->payload['desk_name'] ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ];

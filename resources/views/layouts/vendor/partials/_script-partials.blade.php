@@ -21,6 +21,8 @@
 
 {!! ToastMagic::scripts() !!}
 
+@php($errors = $errors ?? new \Illuminate\Support\ViewErrorBag())
+
 @if ($errors->any())
     <script>
         'use strict';

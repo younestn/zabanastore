@@ -119,6 +119,8 @@
                                 <th>{{ translate('status') }}</th>
                                 <th>{{ translate('total_impressions') }}</th>
                                 <th>{{ translate('total_clicks') }}</th>
+                                <th>{{ translate('completed_purchases_from_ad') }}</th>
+                                <th>{{ translate('sales_from_ad') }}</th>
                                 <th>{{ translate('ad_start_date') }}</th>
                                 <th>{{ translate('ad_end_date') }}</th>
                                 <th>{{ translate('created_at') }}</th>
@@ -138,7 +140,7 @@
                                     </td>
                                     <td>{{ trim(($adRequest->vendor?->f_name ?? '') . ' ' . ($adRequest->vendor?->l_name ?? '')) ?: '-' }}</td>
                                     <td>{{ $adRequest->plan_name ?? '-' }}</td>
-                                    <td>{{ translate($adRequest->placement ?? 'home_top') }}</td>
+                                    <td>{{ translate($adRequest->placement ?? 'featured_products') }}</td>
                                     <td>{{ number_format((float) $adRequest->price, 2) }}</td>
                                     <td>
                                         <span class="badge badge-soft-{{ $adRequest->payment_status === 'uploaded' ? 'success' : 'warning' }}">
@@ -152,6 +154,8 @@
                                     </td>
                                     <td>{{ number_format($adRequest->total_impressions) }}</td>
                                     <td>{{ number_format($adRequest->total_clicks) }}</td>
+                                    <td>{{ number_format($adRequest->completed_purchases_count ?? 0) }}</td>
+                                    <td>{{ number_format((float) ($adRequest->completed_purchases_amount ?? 0), 2) }} DZD</td>
                                     <td>{{ optional($adRequest->start_date)->format('Y-m-d H:i') ?? '-' }}</td>
                                     <td>{{ optional($adRequest->end_date)->format('Y-m-d H:i') ?? '-' }}</td>
                                     <td>{{ $adRequest->created_at?->format('Y-m-d H:i') }}</td>
@@ -170,7 +174,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="14" class="text-center py-5">{{ translate('no_ad_requests_found') }}</td>
+                                    <td colspan="16" class="text-center py-5">{{ translate('no_ad_requests_found') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

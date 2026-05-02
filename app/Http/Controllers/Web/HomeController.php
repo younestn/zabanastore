@@ -9,6 +9,7 @@ use App\Utils\BrandManager;
 use App\Utils\CategoryManager;
 use App\Utils\Helpers;
 use App\Http\Controllers\Controller;
+use App\Services\AdRequestService;
 use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Coupon;
@@ -20,6 +21,8 @@ use App\Models\Seller;
 use App\Models\Review;
 use App\Utils\ProductManager;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +41,7 @@ class HomeController extends Controller
         private readonly Review       $review,
         private readonly DealOfTheDay $dealOfTheDay,
         private readonly Banner       $banner,
+        private readonly AdRequestService $adRequestService,
     )
     {
     }
@@ -51,6 +55,37 @@ class HomeController extends Controller
             'theme_aster' => self::theme_aster(),
             'theme_fashion' => self::theme_fashion(),
         };
+    }
+
+    public function visitAdRequest(int $id, Request $request): RedirectResponse
+    {
+        $adRequest = $this->adRequestService->getActiveAdForVisit($id);
+
+        if (!$adRequest) {
+            return redirect()->route('home');
+        }
+
+        $this->adRequestService->trackActiveAdEvent($adRequest->id, 'web', 'click');
+
+        $targetUrl = $this->adRequestService->resolvePublicRedirectUrl($adRequest) ?: route('home');
+        $isProductRedirect = $targetUrl !== route('home')
+            && (($adRequest->redirect_type === 'product') || ($adRequest->ad_type === 'product') || $adRequest->product_id || $adRequest->redirect_id);
+
+        $attribution = [
+            'ad_request_id' => $adRequest->id,
+            'product_id' => $isProductRedirect
+                ? ($adRequest->redirect_id ?: $adRequest->product_id)
+                : null,
+            'seller_id' => $adRequest->vendor_id,
+            'shop_id' => $adRequest->shop_id,
+            'clicked_at' => now()->toDateTimeString(),
+        ];
+
+        $request->session()->put('ad_attribution', $attribution);
+
+        return redirect()
+            ->to($targetUrl)
+            ->withCookie(cookie('ad_request_id', (string) $adRequest->id, 60 * 24 * 7, '/', null, null, true, false, 'Lax'));
     }
 
     public function default_theme(): View
@@ -78,6 +113,7 @@ class HomeController extends Controller
         $featuredProductsList = ProductManager::getPriorityWiseFeaturedProductsQuery(query: $this->product->active()->with(['clearanceSale' => function ($query) {
             return $query->active();
         }]), dataLimit: 12);
+        $featuredProductAds = $this->adRequestService->getFeaturedProductAds();
         $newArrivalProducts = ProductManager::getPriorityWiseNewArrivalProductsQuery(query: $this->product->active()->with(['clearanceSale' => function ($query) {
             return $query->active();
         }]), dataLimit: 8);
@@ -96,7 +132,7 @@ class HomeController extends Controller
             compact(
                 'flashDeal', 'featuredProductsList', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'categories', 'brands',
                 'dealOfTheDay', 'topVendorsList', 'homeCategories', 'bannerTypeMainBanner', 'bannerTypeMainSectionBanner',
-                'current_date', 'recommendedProduct', 'bannerTypeFooterBanner', 'newArrivalProducts', 'clearanceSaleProducts'
+                'current_date', 'recommendedProduct', 'bannerTypeFooterBanner', 'newArrivalProducts', 'clearanceSaleProducts', 'featuredProductAds'
             )
         );
     }
@@ -162,6 +198,7 @@ class HomeController extends Controller
             ->where('featured', 1)
             ->withCount(['orderDetails']);
         $featuredProductsList = ProductManager::getPriorityWiseFeaturedProductsQuery(query: $featuredProductsList, dataLimit: 10);
+        $featuredProductAds = $this->adRequestService->getFeaturedProductAds();
 
         $featuredProductsList?->map(function ($product) use ($current_date) {
             $flashDealStatus = 0;
@@ -332,7 +369,7 @@ class HomeController extends Controller
                 'flashDeal', 'topRatedProducts', 'bestSellProduct', 'latestProductsList', 'featuredProductsList', 'dealOfTheDay', 'topVendorsList',
                 'homeCategories', 'bannerTypeMainBanner', 'bannerTypeFooterBanner', 'randomSingleProduct', 'decimal_point_settings', 'justForYouProducts', 'moreVendors',
                 'final_category', 'category_slider', 'order_again', 'bannerTypeSidebarBanner', 'bannerTypeMainSectionBanner', 'random_coupon', 'bannerTypeTopSideBanner',
-                'categories', 'topVendorsListSectionShowingStatus', 'clearanceSaleProducts', 'recommendedProduct'
+                'categories', 'topVendorsListSectionShowingStatus', 'clearanceSaleProducts', 'recommendedProduct', 'featuredProductAds'
             )
         );
     }
@@ -372,6 +409,7 @@ class HomeController extends Controller
                 ->withCount(['reviews']);
             return ProductManager::getPriorityWiseFeaturedProductsQuery(query: $featuredProductsList, dataLimit: 15);
         });
+        $featuredProductAds = $this->adRequestService->getFeaturedProductAds();
 
         $mostSearchingProducts = Cache::remember(CACHE_FOR_MOST_SEARCHING_PRODUCTS_LIST, CACHE_FOR_3_HOURS, function () {
             return Product::active()->with(['category', 'clearanceSale' => function ($query) {

@@ -124,6 +124,7 @@ Route::group(['namespace' => 'Web', 'middleware' => ['maintenance_mode', 'guestC
 
     Route::controller(HomeController::class)->group(function () {
         Route::get('/', 'index')->name('home');
+        Route::get('/ad-requests/{id}/visit', 'visitAdRequest')->name('web.ad-requests.visit');
     });
 
     Route::controller(WebController::class)->group(function () {

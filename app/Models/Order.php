@@ -268,6 +268,12 @@ class Order extends Model
     {
         parent::boot();
         //static::addGlobalScope(new RememberScope);
+
+        static::updated(function (Order $order): void {
+            if ($order->wasChanged('order_status') && $order->order_status === 'delivered') {
+                app(\App\Services\AdRequestService::class)->recordCompletedPurchaseFromOrder($order);
+            }
+        });
     }
 
     public function getShippingDisplayNameAttribute(): string

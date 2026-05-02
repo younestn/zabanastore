@@ -52,6 +52,9 @@ class AdRequest extends Model
         'clicks_app',
         'last_impression_at',
         'last_click_at',
+        'completed_purchases_count',
+        'completed_purchases_amount',
+        'last_purchase_at',
     ];
 
     protected $casts = [
@@ -74,6 +77,9 @@ class AdRequest extends Model
         'rejected_at' => 'datetime',
         'last_impression_at' => 'datetime',
         'last_click_at' => 'datetime',
+        'completed_purchases_count' => 'integer',
+        'completed_purchases_amount' => 'decimal:2',
+        'last_purchase_at' => 'datetime',
     ];
 
     protected $appends = ['image_url', 'image_full_url', 'payment_receipt_full_url', 'display_status'];

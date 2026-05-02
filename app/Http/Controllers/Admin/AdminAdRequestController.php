@@ -77,7 +77,7 @@ class AdminAdRequestController extends Controller
         return view('admin-views.all-adsfetch.pricing', [
             'pricingPlans' => $pricingPlans,
             'editingPlan' => $editingPlan,
-            'placements' => $this->adRequestService->getPlacements(),
+            'placements' => $this->adRequestService->getAdminPricingPlacements($editingPlan?->placement),
         ]);
     }
 
@@ -90,7 +90,7 @@ class AdminAdRequestController extends Controller
         return view('admin-views.all-adsfetch.show', [
             'adRequest' => $adRequest,
             'paymentSettings' => $this->adRequestService->getPaymentSettings(),
-            'placements' => $this->adRequestService->getPlacements(),
+            'placements' => $this->adRequestService->getAdminPricingPlacements($adRequest->placement),
         ]);
     }
 
@@ -262,7 +262,7 @@ class AdminAdRequestController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'placement' => ['required', Rule::in($this->adRequestService->getPlacementKeys())],
+            'placement' => ['required', Rule::in(array_keys($this->adRequestService->getAdminPricingPlacements($plan?->placement)))],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
             'duration_days' => ['required', 'integer', 'min:1'],

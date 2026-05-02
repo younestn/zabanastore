@@ -6,7 +6,10 @@ use App\Http\Controllers\VendorAdRequestController;
 use App\Models\Admin;
 use App\Models\AdPricingPlan;
 use App\Models\AdRequest;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Seller;
+use App\Services\AdRequestService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +35,9 @@ class AdRequestFeatureTest extends TestCase
             'ad_requests.payment_settings.ad_default_price' => 2500,
             'ad_requests.payment_settings.ad_currency' => 'DZD',
             'ad_requests.payment_settings.ad_receipt_required' => 1,
+            'get_theme_routes' => [],
+            'addon_admin_routes' => [],
+            'currency_symbol_position' => 'left',
         ]);
     }
 
@@ -44,9 +50,18 @@ class AdRequestFeatureTest extends TestCase
             'notification_seens',
             'notifications',
             'chattings',
+            'order_details',
             'orders',
+            'refund_requests',
+            'contacts',
+            'support_tickets',
+            'seller_commission_alert_logs',
+            'guest_users',
             'ad_requests',
             'ad_pricing_plans',
+            'currencies',
+            'brands',
+            'categories',
             'products',
             'shops',
             'sellers',
@@ -114,9 +129,9 @@ class AdRequestFeatureTest extends TestCase
         $admin = $this->createAdmin();
 
         $response = $this->actingAs($admin, 'admin')->post(route('admin.ad-requests.pricing.store'), [
-            'name' => 'Home Top Weekly',
-            'placement' => 'home_top',
-            'description' => 'Top placement for one week',
+            'name' => 'Featured Weekly',
+            'placement' => 'featured_products',
+            'description' => 'Featured products placement for one week',
             'price' => 2500,
             'duration_days' => 7,
             'currency' => 'DZD',
@@ -127,8 +142,8 @@ class AdRequestFeatureTest extends TestCase
         $response->assertRedirect(route('admin.ad-requests.pricing.index'));
 
         $this->assertDatabaseHas('ad_pricing_plans', [
-            'name' => 'Home Top Weekly',
-            'placement' => 'home_top',
+            'name' => 'Featured Weekly',
+            'placement' => 'featured_products',
             'duration_days' => 7,
         ]);
     }
@@ -145,7 +160,7 @@ class AdRequestFeatureTest extends TestCase
 
         $response = $this->actingAs($admin, 'admin')->post(route('admin.ad-requests.pricing.update', $plan->id), [
             'name' => 'Updated Plan',
-            'placement' => 'home_middle',
+            'placement' => 'home_banner_classic',
             'description' => 'Updated description',
             'price' => 1800,
             'duration_days' => 5,
@@ -159,7 +174,7 @@ class AdRequestFeatureTest extends TestCase
         $plan->refresh();
 
         $this->assertSame('Updated Plan', $plan->name);
-        $this->assertSame('home_middle', $plan->placement);
+        $this->assertSame('home_banner_classic', $plan->placement);
         $this->assertSame(1800.0, (float) $plan->price);
         $this->assertSame(5, (int) $plan->duration_days);
     }
@@ -169,14 +184,18 @@ class AdRequestFeatureTest extends TestCase
         $this->withoutMiddleware();
 
         $seller = $this->createSeller();
-        $activePlan = $this->createPricingPlan(['name' => 'Active Plan', 'status' => true]);
+        $activePlan = $this->createPricingPlan(['name' => 'Active Plan', 'status' => true, 'placement' => 'featured_products']);
         $this->createPricingPlan(['name' => 'Inactive Plan', 'status' => false]);
+        $this->createPricingPlan(['name' => 'Legacy Home Top Plan', 'placement' => 'home_top', 'status' => true]);
+        $this->createPricingPlan(['name' => 'Classic Banner Plan', 'placement' => 'home_banner_classic', 'status' => true]);
 
         $response = $this->actingAs($seller, 'seller')->get(route('vendor.vendor1.test'));
 
         $response->assertOk();
         $response->assertSee($activePlan->name);
         $response->assertDontSee('Inactive Plan');
+        $response->assertDontSee('Legacy Home Top Plan');
+        $response->assertDontSee('Classic Banner Plan');
     }
 
     public function test_seller_creates_ad_request_using_pricing_plan_and_custom_price_duration_are_ignored(): void
@@ -188,7 +207,7 @@ class AdRequestFeatureTest extends TestCase
         $product = $this->createProduct($seller->id);
         $plan = $this->createPricingPlan([
             'name' => 'Product Details Blast',
-            'placement' => 'product_details',
+            'placement' => 'featured_products',
             'price' => 1000,
             'duration_days' => 3,
             'currency' => 'DZD',
@@ -228,8 +247,9 @@ class AdRequestFeatureTest extends TestCase
 
         $seller = $this->createSeller();
         $plan = $this->createPricingPlan([
-            'name' => 'Middle Banner',
+            'name' => 'Featured Banner',
             'price' => 1500,
+            'placement' => 'featured_products',
         ]);
 
         $response = $this->actingAs($seller, 'seller')->get(route('vendor.vendor1.test'));
@@ -275,7 +295,7 @@ class AdRequestFeatureTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin, 'admin')->post(route('admin.ad-requests.approve', $adRequest->id), [
-            'placement' => 'home_middle',
+            'placement' => 'featured_products',
             'price' => 3300,
             'start_date' => now()->subHour()->format('Y-m-d H:i:s'),
             'end_date' => now()->addDays(7)->format('Y-m-d H:i:s'),
@@ -287,7 +307,7 @@ class AdRequestFeatureTest extends TestCase
         $adRequest->refresh();
 
         $this->assertContains($adRequest->status, ['approved', 'active']);
-        $this->assertSame('home_middle', $adRequest->placement);
+        $this->assertSame('featured_products', $adRequest->placement);
         $this->assertSame(3300.0, (float) $adRequest->price);
         $this->assertSame(5, (int) $adRequest->priority);
         $this->assertNotNull($adRequest->approved_at);
@@ -305,7 +325,7 @@ class AdRequestFeatureTest extends TestCase
         $visible = $this->createAdRequest($seller->id, $product->id, $plan->id, [
             'title' => 'Visible Ad',
             'status' => 'active',
-            'placement' => 'home_top',
+            'placement' => 'featured_products',
             'image_path' => 'ad-request/visible.jpg',
             'payment_receipt' => 'ad-request/receipts/visible.pdf',
             'start_date' => now()->subDay(),
@@ -315,29 +335,84 @@ class AdRequestFeatureTest extends TestCase
         $this->createAdRequest($seller->id, $product->id, $plan->id, [
             'title' => 'Pending Ad',
             'status' => 'pending',
-            'placement' => 'home_top',
+            'placement' => 'featured_products',
             'image_path' => 'ad-request/pending.jpg',
             'start_date' => now()->subDay(),
             'end_date' => now()->addDay(),
         ]);
 
-        $response = $this->getJson('/api/v1/ad-requests/active?placement=home_top&limit=10');
+        $response = $this->getJson('/api/v1/ad-requests/active?placement=featured_products&limit=10');
 
         $response->assertOk();
         $response->assertJsonCount(1);
         $response->assertJsonFragment([
             'id' => $visible->id,
             'title' => 'Visible Ad',
-            'placement' => 'home_top',
+            'placement' => 'featured_products',
             'seller_id' => $seller->id,
+            'type' => 'vendor_ad',
+            'label' => 'Ad',
         ]);
 
         $payload = $response->json();
         $this->assertArrayHasKey('impression_url', $payload[0]);
         $this->assertArrayHasKey('click_url', $payload[0]);
+        $this->assertArrayHasKey('visit_url', $payload[0]);
         $this->assertArrayNotHasKey('payment_receipt', $payload[0]);
         $this->assertArrayNotHasKey('admin_note', $payload[0]);
         $this->assertArrayNotHasKey('rejection_reason', $payload[0]);
+    }
+
+    public function test_web_visit_endpoint_increments_web_click_and_redirects_to_product(): void
+    {
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'active',
+            'redirect_type' => null,
+            'redirect_id' => null,
+            'image_path' => 'ad-request/visible.jpg',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDay(),
+        ]);
+
+        $response = $this->get(route('web.ad-requests.visit', $adRequest->id));
+
+        $response->assertRedirect(route('product', $product->slug));
+        $this->assertStringNotContainsString('/ad-requests/' . $adRequest->id . '/visit', (string) $response->headers->get('Location'));
+        $response->assertSessionHas('ad_attribution.ad_request_id', $adRequest->id);
+        $response->assertSessionHas('ad_attribution.product_id', $product->id);
+
+        $adRequest->refresh();
+
+        $this->assertSame(1, (int) $adRequest->clicks_web);
+        $this->assertNotNull($adRequest->last_click_at);
+    }
+
+    public function test_visit_inactive_ad_does_not_increment_click_and_redirects_safely(): void
+    {
+        $this->withoutMiddleware();
+
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'pending',
+            'redirect_type' => 'product',
+            'redirect_id' => $product->id,
+            'image_path' => 'ad-request/pending.jpg',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDay(),
+        ]);
+
+        $response = $this->get(route('web.ad-requests.visit', $adRequest->id));
+
+        $response->assertRedirect(route('home'));
+
+        $adRequest->refresh();
+
+        $this->assertSame(0, (int) $adRequest->clicks_web);
     }
 
     public function test_active_ad_impression_app_increments_app_counter(): void
@@ -426,6 +501,8 @@ class AdRequestFeatureTest extends TestCase
             'impressions_app' => 8,
             'clicks_web' => 3,
             'clicks_app' => 2,
+            'completed_purchases_count' => 4,
+            'completed_purchases_amount' => 12500,
         ]);
 
         $response = $this->actingAs($seller, 'seller')->get(route('vendor.ad-request.show', $adRequest->id));
@@ -434,6 +511,124 @@ class AdRequestFeatureTest extends TestCase
         $response->assertSee('Stats Plan');
         $response->assertSee('20');
         $response->assertSee('5');
+        $response->assertSee('4');
+        $response->assertSee('12,500.00', false);
+    }
+
+    public function test_featured_product_ad_partials_use_web_visit_link(): void
+    {
+        $defaultPartial = file_get_contents(resource_path('themes/default/web-views/partials/_featured-product-vendor-ads.blade.php'));
+        $asterPartial = file_get_contents(resource_path('themes/theme_aster/theme-views/partials/_featured-product-vendor-ads.blade.php'));
+
+        $this->assertStringContainsString("route('web.ad-requests.visit'", $defaultPartial);
+        $this->assertStringContainsString("route('web.ad-requests.visit'", $asterPartial);
+        $this->assertStringContainsString('product-single-hover', $defaultPartial);
+        $this->assertStringContainsString('aspect-ratio: 1 / 1', $defaultPartial);
+        $this->assertStringContainsString('class="product border rounded text-center d-flex flex-column gap-10 ov-hidden cursor-pointer"', $asterPartial);
+        $this->assertStringContainsString('object-fit: cover;', $asterPartial);
+    }
+
+    public function test_completed_delivered_order_detail_from_ad_increments_purchase_stats(): void
+    {
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'active',
+            'redirect_type' => 'product',
+            'redirect_id' => $product->id,
+        ]);
+        $order = $this->createOrder($seller->id);
+        $detail = $this->createOrderDetail($order->id, $product->id, $seller->id, [
+            'ad_request_id' => $adRequest->id,
+            'ad_attribution_source' => 'web',
+            'price' => 1000,
+            'qty' => 2,
+            'tax' => 50,
+            'discount' => 100,
+        ]);
+
+        app(AdRequestService::class)->recordCompletedPurchaseFromOrder($order);
+
+        $adRequest->refresh();
+        $detail->refresh();
+
+        $this->assertSame(1, (int) $adRequest->completed_purchases_count);
+        $this->assertSame(1950.0, (float) $adRequest->completed_purchases_amount);
+        $this->assertNotNull($adRequest->last_purchase_at);
+        $this->assertNotNull($detail->ad_purchase_counted_at);
+    }
+
+    public function test_completed_purchase_is_not_counted_twice(): void
+    {
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'active',
+            'redirect_type' => 'product',
+            'redirect_id' => $product->id,
+        ]);
+        $order = $this->createOrder($seller->id);
+
+        $this->createOrderDetail($order->id, $product->id, $seller->id, [
+            'ad_request_id' => $adRequest->id,
+            'ad_attribution_source' => 'web',
+            'price' => 500,
+            'qty' => 1,
+        ]);
+
+        app(AdRequestService::class)->recordCompletedPurchaseFromOrder($order);
+        app(AdRequestService::class)->recordCompletedPurchaseFromOrder($order);
+
+        $adRequest->refresh();
+
+        $this->assertSame(1, (int) $adRequest->completed_purchases_count);
+        $this->assertSame(500.0, (float) $adRequest->completed_purchases_amount);
+    }
+
+    public function test_purchase_of_different_product_is_not_attributed_to_ad(): void
+    {
+        $seller = $this->createSeller();
+        $advertisedProduct = $this->createProduct($seller->id, 'Advertised Product');
+        $otherProduct = $this->createProduct($seller->id, 'Other Product');
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $advertisedProduct->id, $plan->id, [
+            'status' => 'active',
+            'redirect_type' => 'product',
+            'redirect_id' => $advertisedProduct->id,
+        ]);
+
+        session()->put('ad_attribution', [
+            'ad_request_id' => $adRequest->id,
+            'product_id' => $advertisedProduct->id,
+            'seller_id' => $seller->id,
+            'shop_id' => $adRequest->shop_id,
+            'clicked_at' => now()->toDateTimeString(),
+        ]);
+
+        $this->assertNull(app(AdRequestService::class)->resolveProductAttribution($otherProduct->id));
+    }
+
+    public function test_vendor_and_admin_show_pages_display_completed_purchase_stats(): void
+    {
+        $this->withoutMiddleware();
+
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $admin = $this->createAdmin();
+        $plan = $this->createPricingPlan();
+        $adRequest = $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'completed_purchases_count' => 3,
+            'completed_purchases_amount' => 12500,
+            'last_purchase_at' => now(),
+        ]);
+
+        $vendorResponse = $this->actingAs($seller, 'seller')->get(route('vendor.ad-request.show', $adRequest->id));
+        $adminResponse = $this->actingAs($admin, 'admin')->get(route('admin.ad-requests.show', $adRequest->id));
+
+        $vendorResponse->assertOk()->assertSee('3')->assertSee('12,500.00', false);
+        $adminResponse->assertOk()->assertSee('3')->assertSee('12,500.00', false);
     }
 
     public function test_banner_and_noest_routes_still_exist(): void
@@ -443,6 +638,55 @@ class AdRequestFeatureTest extends TestCase
 
         $this->assertSame('App\Http\Controllers\RestAPI\v1\BannerController@getBannerList', $bannerRoute->getActionName());
         $this->assertSame('App\Http\Controllers\RestAPI\v1\ShippingMethodController@noest_wilayas', $noestRoute->getActionName());
+    }
+
+    public function test_approved_featured_products_ad_does_not_appear_before_start_date(): void
+    {
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan(['placement' => 'featured_products']);
+
+        $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'approved',
+            'placement' => 'featured_products',
+            'image_path' => 'ad-request/future.jpg',
+            'start_date' => now()->addDay(),
+            'end_date' => now()->addDays(2),
+        ]);
+
+        $response = $this->getJson('/api/v1/ad-requests/active?placement=featured_products');
+
+        $response->assertOk()->assertJsonCount(0);
+    }
+
+    public function test_approved_featured_products_ad_does_not_appear_after_end_date(): void
+    {
+        $seller = $this->createSeller();
+        $product = $this->createProduct($seller->id);
+        $plan = $this->createPricingPlan(['placement' => 'featured_products']);
+
+        $this->createAdRequest($seller->id, $product->id, $plan->id, [
+            'status' => 'approved',
+            'placement' => 'featured_products',
+            'image_path' => 'ad-request/past.jpg',
+            'start_date' => now()->subDays(3),
+            'end_date' => now()->subDay(),
+        ]);
+
+        $response = $this->getJson('/api/v1/ad-requests/active?placement=featured_products');
+
+        $response->assertOk()->assertJsonCount(0);
+    }
+
+    public function test_home_banner_classic_is_admin_only(): void
+    {
+        $seller = $this->createSeller();
+        $this->createPricingPlan(['name' => 'Classic Home Banner', 'placement' => 'home_banner_classic', 'status' => true]);
+
+        $response = $this->actingAs($seller, 'seller')->get(route('vendor.vendor1.test'));
+
+        $response->assertOk();
+        $response->assertDontSee('Classic Home Banner');
     }
 
     private function setUpDatabase(): void
@@ -457,6 +701,7 @@ class AdRequestFeatureTest extends TestCase
         DB::table('business_settings')->insert([
             ['type' => 'language', 'value' => json_encode([['code' => 'en', 'name' => 'English', 'default' => true, 'direction' => 'ltr', 'status' => 1]]), 'created_at' => now(), 'updated_at' => now()],
             ['type' => 'pagination_limit', 'value' => '15', 'created_at' => now(), 'updated_at' => now()],
+            ['type' => 'system_default_currency', 'value' => '1', 'created_at' => now(), 'updated_at' => now()],
             ['type' => 'ad_default_price', 'value' => '2500', 'created_at' => now(), 'updated_at' => now()],
             ['type' => 'ad_currency', 'value' => 'DZD', 'created_at' => now(), 'updated_at' => now()],
             ['type' => 'ad_receipt_required', 'value' => '1', 'created_at' => now(), 'updated_at' => now()],
@@ -481,15 +726,51 @@ class AdRequestFeatureTest extends TestCase
             $table->unsignedBigInteger('seller_id')->nullable();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
+            $table->string('image')->nullable();
+            $table->longText('setup_guide')->nullable();
             $table->boolean('temporary_close')->default(false);
             $table->timestamps();
         });
+
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->integer('status')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('brands', function (Blueprint $table) {
+            $table->id();
+            $table->integer('status')->default(1);
+            $table->timestamps();
+        });
+
+        Schema::create('currencies', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('symbol')->nullable();
+            $table->string('code')->nullable();
+            $table->decimal('exchange_rate', 12, 2)->default(1);
+            $table->integer('status')->default(1);
+            $table->timestamps();
+        });
+
+        DB::table('currencies')->insert([
+            'id' => 1,
+            'name' => 'Algerian Dinar',
+            'symbol' => 'DZD',
+            'code' => 'DZD',
+            'exchange_rate' => 1,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->string('added_by')->default('seller');
             $table->string('name');
+            $table->string('slug')->nullable();
             $table->integer('status')->default(1);
             $table->integer('request_status')->default(1);
             $table->timestamps();
@@ -573,6 +854,62 @@ class AdRequestFeatureTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('guest_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('ip_address')->nullable();
+            $table->string('fcm_token')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('order_details', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('order_id')->nullable();
+            $table->unsignedBigInteger('product_id')->nullable();
+            $table->unsignedBigInteger('seller_id')->nullable();
+            $table->longText('product_details')->nullable();
+            $table->integer('qty')->default(1);
+            $table->decimal('price', 14, 2)->default(0);
+            $table->decimal('tax', 14, 2)->default(0);
+            $table->decimal('discount', 14, 2)->default(0);
+            $table->string('tax_model')->nullable();
+            $table->string('delivery_status')->nullable();
+            $table->string('payment_status')->nullable();
+            $table->unsignedBigInteger('shipping_method_id')->nullable();
+            $table->string('variant')->nullable();
+            $table->text('variation')->nullable();
+            $table->string('discount_type')->nullable();
+            $table->unsignedBigInteger('ad_request_id')->nullable();
+            $table->string('ad_attribution_source')->nullable();
+            $table->dateTime('ad_purchase_counted_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('refund_requests', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('order_id')->nullable();
+            $table->string('status')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('contacts', function (Blueprint $table) {
+            $table->id();
+            $table->boolean('seen')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('support_tickets', function (Blueprint $table) {
+            $table->id();
+            $table->string('status')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('seller_commission_alert_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('seller_id')->nullable();
+            $table->string('recipient_type')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('ad_pricing_plans', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -599,7 +936,7 @@ class AdRequestFeatureTest extends TestCase
             $table->string('title')->nullable();
             $table->text('description')->nullable();
             $table->string('ad_type');
-            $table->string('placement')->nullable()->default('home_top');
+            $table->string('placement')->nullable()->default('featured_products');
             $table->integer('duration_days');
             $table->decimal('price', 12, 2)->default(0);
             $table->string('image_path')->nullable();
@@ -626,6 +963,9 @@ class AdRequestFeatureTest extends TestCase
             $table->unsignedBigInteger('clicks_app')->default(0);
             $table->dateTime('last_impression_at')->nullable();
             $table->dateTime('last_click_at')->nullable();
+            $table->unsignedBigInteger('completed_purchases_count')->default(0);
+            $table->decimal('completed_purchases_amount', 14, 2)->default(0);
+            $table->dateTime('last_purchase_at')->nullable();
             $table->string('status')->default('pending');
             $table->timestamps();
         });
@@ -671,6 +1011,7 @@ class AdRequestFeatureTest extends TestCase
             'user_id' => $sellerId,
             'added_by' => 'seller',
             'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name) . '-' . uniqid(),
             'status' => 1,
             'request_status' => 1,
             'created_at' => now(),
@@ -680,12 +1021,38 @@ class AdRequestFeatureTest extends TestCase
         return DB::table('products')->where('id', $id)->first();
     }
 
+    private function createOrder(int $sellerId, array $overrides = []): Order
+    {
+        return Order::query()->create(array_merge([
+            'seller_id' => $sellerId,
+            'seller_is' => 'seller',
+            'order_status' => 'delivered',
+        ], $overrides));
+    }
+
+    private function createOrderDetail(int $orderId, int $productId, int $sellerId, array $overrides = []): OrderDetail
+    {
+        return OrderDetail::query()->create(array_merge([
+            'order_id' => $orderId,
+            'product_id' => $productId,
+            'seller_id' => $sellerId,
+            'product_details' => '{}',
+            'qty' => 1,
+            'price' => 100,
+            'tax' => 0,
+            'discount' => 0,
+            'tax_model' => 'exclude',
+            'delivery_status' => 'delivered',
+            'payment_status' => 'paid',
+        ], $overrides));
+    }
+
     private function createPricingPlan(array $overrides = []): AdPricingPlan
     {
         $defaults = [
-            'name' => 'Home Top Weekly',
-            'placement' => 'home_top',
-            'description' => 'Weekly top homepage package',
+            'name' => 'Featured Weekly',
+            'placement' => 'featured_products',
+            'description' => 'Featured products package',
             'price' => 2500,
             'duration_days' => 7,
             'currency' => 'DZD',
@@ -713,7 +1080,7 @@ class AdRequestFeatureTest extends TestCase
             'title' => 'Sample Ad Request',
             'description' => 'Ad description',
             'ad_type' => 'banner',
-            'placement' => $plan?->placement ?? 'home_top',
+            'placement' => $plan?->placement ?? 'featured_products',
             'duration_days' => $plan?->duration_days ?? 7,
             'price' => $plan?->price ?? 2500,
             'image_path' => 'ad-request/sample.jpg',

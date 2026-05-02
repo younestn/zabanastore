@@ -24,6 +24,7 @@
                             </a>
                         </div>
                         <div class="auto-col mobile-items-2 gap-2 gap-sm-3 recommended-product-grid minWidth-12rem">
+                            @include('theme-views.partials._featured-product-vendor-ads', ['featuredProductAds' => $featuredProductAds ?? collect()])
                             @foreach($featuredProductsList as $product)
                                 @if($product)
                                     @include('theme-views.partials._product-large-card',['product'=>$product])
@@ -62,3 +63,32 @@
         </div>
     </div>
 </section>
+
+@once
+    @push('script')
+        <script>
+            function postVendorAdMetric(url) {
+                if (!url) return;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                    body: JSON.stringify({source: 'web'})
+                }).catch(() => {});
+            }
+
+            function trackVendorAdClick(event, url, redirectUrl) {
+                event.preventDefault();
+                postVendorAdMetric(url);
+                if (redirectUrl && redirectUrl !== 'javascript:') {
+                    window.location.href = redirectUrl;
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-impression-url]').forEach(function (element) {
+                    postVendorAdMetric(element.getAttribute('data-impression-url'));
+                });
+            });
+        </script>
+    @endpush
+@endonce

@@ -34,11 +34,15 @@
                             <label class="form-label">{{ translate('ad_placement') }}</label>
                             <select name="placement" class="form-control" required>
                                 @foreach($placements as $placementKey => $placementConfig)
-                                    <option value="{{ $placementKey }}" {{ old('placement', $editingPlan->placement ?? 'home_top') === $placementKey ? 'selected' : '' }}>
+                                    <option value="{{ $placementKey }}" {{ old('placement', $editingPlan->placement ?? 'featured_products') === $placementKey ? 'selected' : '' }}>
                                         {{ translate($placementKey) }}
                                     </option>
                                 @endforeach
                             </select>
+                            <small class="text-muted d-block mt-2">
+                                {{ translate('featured_products') }}: {{ translate('ad_appears_first_in_featured_products') }}<br>
+                                {{ translate('classic_home_banner') }}: {{ translate('classic_home_banner') }}
+                            </small>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">{{ translate('ad_plan_currency') }}</label>

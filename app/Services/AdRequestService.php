@@ -5,9 +5,13 @@ namespace App\Services;
 use App\Models\AdRequest;
 use App\Models\AdPricingPlan;
 use App\Models\BusinessSetting;
+use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Product;
 use App\Models\Seller;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -64,6 +68,21 @@ class AdRequestService
         return config('ad_requests.placements', []);
     }
 
+    public function getVendorPlacements(): array
+    {
+        return config('ad_requests.vendor_placements', []);
+    }
+
+    public function getAdminOnlyPlacements(): array
+    {
+        return config('ad_requests.admin_only_placements', []);
+    }
+
+    public function getDefaultVendorPlacement(): string
+    {
+        return (string) config('ad_requests.default_vendor_placement', 'featured_products');
+    }
+
     public function getPricingPlans(bool $onlyActive = false)
     {
         return AdPricingPlan::query()
@@ -76,6 +95,7 @@ class AdRequestService
     public function getVendorPricingPlans(?int $selectedPlanId = null)
     {
         return AdPricingPlan::query()
+            ->whereIn('placement', array_keys($this->getVendorPlacements()))
             ->where(function ($query) use ($selectedPlanId) {
                 $query->where('status', true);
 
@@ -86,6 +106,21 @@ class AdRequestService
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    public function getAdminPricingPlacements(?string $currentPlacement = null): array
+    {
+        $placements = array_merge($this->getVendorPlacements(), $this->getAdminOnlyPlacements());
+
+        if ($currentPlacement && !isset($placements[$currentPlacement])) {
+            $legacyPlacement = $this->getPlacements()[$currentPlacement] ?? null;
+
+            if ($legacyPlacement) {
+                $placements[$currentPlacement] = $legacyPlacement;
+            }
+        }
+
+        return $placements;
     }
 
     public function getPlacementKeys(): array
@@ -260,7 +295,7 @@ class AdRequestService
 
     public function updateAdminMetadata(AdRequest $adRequest, array $validated, int $adminId): AdRequest
     {
-        $placement = $validated['placement'] ?? $adRequest->placement ?? 'home_top';
+        $placement = $validated['placement'] ?? $adRequest->placement ?? $this->getDefaultVendorPlacement();
 
         $adRequest->fill([
             'placement' => $placement,
@@ -329,7 +364,7 @@ class AdRequestService
     public function getActiveAdsQuery(?string $placement = null)
     {
         return AdRequest::query()
-            ->with(['vendor.shop'])
+            ->with(['vendor.shop', 'shop', 'product'])
             ->whereIn('status', ['approved', 'active'])
             ->whereNotNull('image_path')
             ->where(function ($query) {
@@ -359,22 +394,35 @@ class AdRequestService
 
     public function formatActiveAd(AdRequest $adRequest): array
     {
+        $placementConfig = $this->getPlacements()[$adRequest->placement ?? ''] ?? [];
+
         return [
             'id' => $adRequest->id,
+            'type' => 'vendor_ad',
+            'label' => translate('ad'),
             'title' => $adRequest->title,
             'image_url' => $adRequest->image_full_url['path'] ?? $adRequest->image_url,
             'redirect_type' => $adRequest->redirect_type,
             'redirect_id' => $adRequest->redirect_id,
-            'redirect_url' => $adRequest->redirect_url,
+            'redirect_url' => $this->resolvePublicRedirectUrl($adRequest),
             'seller_id' => $adRequest->vendor_id,
             'shop_id' => $adRequest->shop_id,
             'placement' => $adRequest->placement,
+            'placement_label' => translate($placementConfig['label'] ?? ($adRequest->placement ?? 'featured_products')),
             'priority' => (int) ($adRequest->priority ?? 0),
             'start_date' => optional($adRequest->start_date)->toDateTimeString(),
             'end_date' => optional($adRequest->end_date)->toDateTimeString(),
             'impression_url' => route('api.v1.ad-requests.impression', $adRequest->id),
             'click_url' => route('api.v1.ad-requests.click', $adRequest->id),
+            'visit_url' => route('web.ad-requests.visit', $adRequest->id),
         ];
+    }
+
+    public function getFeaturedProductAds(int $limit = 3)
+    {
+        return $this->getActiveAdsQuery('featured_products')
+            ->limit(max(1, $limit))
+            ->get();
     }
 
     public function trackActiveAdEvent(int $adRequestId, string $source, string $eventType): bool
@@ -407,6 +455,107 @@ class AdRequestService
         $adRequest->forceFill([$timestampColumn => now()])->save();
 
         return true;
+    }
+
+    public function getActiveAdForVisit(int $adRequestId): ?AdRequest
+    {
+        return $this->getActiveAdsQuery()
+            ->whereKey($adRequestId)
+            ->first();
+    }
+
+    public function resolvePublicRedirectUrl(AdRequest $adRequest): ?string
+    {
+        return match ($this->resolveRedirectType($adRequest)) {
+            'url' => filter_var($adRequest->redirect_url, FILTER_VALIDATE_URL) ? $adRequest->redirect_url : null,
+            'product' => $this->resolveProductRedirectUrl($adRequest),
+            'shop' => $this->resolveShopRedirectUrl($adRequest),
+            default => filter_var($adRequest->redirect_url, FILTER_VALIDATE_URL) ? $adRequest->redirect_url : null,
+        };
+    }
+
+    public function resolveProductAttribution(?int $productId, ?int $adRequestId = null): ?array
+    {
+        $productId = (int) $productId;
+        $adRequestId = $adRequestId ?: (int) (session('ad_attribution.ad_request_id') ?: request()->cookie('ad_request_id'));
+
+        if (!$productId || !$adRequestId) {
+            return null;
+        }
+
+        $adRequest = AdRequest::query()->find($adRequestId);
+
+        if (!$adRequest || $this->resolveRedirectType($adRequest) !== 'product') {
+            return null;
+        }
+
+        $targetProductId = $this->resolveProductAttributionId($adRequest);
+
+        if (!$targetProductId || (int) $targetProductId !== $productId) {
+            return null;
+        }
+
+        return [
+            'ad_request_id' => $adRequest->id,
+            'ad_attribution_source' => 'web',
+        ];
+    }
+
+    public function recordCompletedPurchaseFromOrder(Order $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $details = OrderDetail::query()
+                ->where('order_id', $order->id)
+                ->whereNotNull('ad_request_id')
+                ->whereNull('ad_purchase_counted_at')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($details as $detail) {
+                $this->recordCompletedPurchaseFromOrderDetail($detail);
+            }
+        });
+    }
+
+    public function recordCompletedPurchaseFromOrderDetail(OrderDetail $orderDetail): void
+    {
+        if (!$orderDetail->ad_request_id || $orderDetail->ad_purchase_counted_at) {
+            return;
+        }
+
+        DB::transaction(function () use ($orderDetail) {
+            $detail = OrderDetail::query()
+                ->whereKey($orderDetail->id)
+                ->whereNotNull('ad_request_id')
+                ->whereNull('ad_purchase_counted_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$detail) {
+                return;
+            }
+
+            $adRequest = AdRequest::query()
+                ->whereKey($detail->ad_request_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$adRequest) {
+                return;
+            }
+
+            $amount = max(0, ((float) $detail->price * (int) $detail->qty) + (float) $detail->tax - (float) $detail->discount);
+
+            $adRequest->forceFill([
+                'completed_purchases_count' => (int) ($adRequest->completed_purchases_count ?? 0) + 1,
+                'completed_purchases_amount' => round((float) ($adRequest->completed_purchases_amount ?? 0) + $amount, 2),
+                'last_purchase_at' => now(),
+            ])->save();
+
+            $detail->forceFill([
+                'ad_purchase_counted_at' => now(),
+            ])->save();
+        });
     }
 
     public function determineApprovalStatus(?Carbon $startDate, ?Carbon $endDate): string
@@ -444,6 +593,7 @@ class AdRequestService
     {
         return AdPricingPlan::query()
             ->where('id', $planId)
+            ->whereIn('placement', array_keys($this->getVendorPlacements()))
             ->where(function ($query) use ($currentPlanId) {
                 $query->where('status', true);
 
@@ -456,6 +606,58 @@ class AdRequestService
                     'ad_pricing_plan_id' => translate('no_active_ad_plans'),
                 ]);
             });
+    }
+
+    private function resolveProductRedirectUrl(AdRequest $adRequest): ?string
+    {
+        $product = $adRequest->product;
+
+        if (!$product && $adRequest->redirect_id) {
+            $product = Product::query()->find($adRequest->redirect_id);
+        }
+
+        if (!$product && $adRequest->product_id) {
+            $product = Product::query()->find($adRequest->product_id);
+        }
+
+        return $product?->slug
+            ? route('product', $product->slug)
+            : (filter_var($adRequest->redirect_url, FILTER_VALIDATE_URL) ? $adRequest->redirect_url : null);
+    }
+
+    private function resolveShopRedirectUrl(AdRequest $adRequest): ?string
+    {
+        return $adRequest->shop?->slug
+            ? route('shopView', ['slug' => $adRequest->shop->slug])
+            : (filter_var($adRequest->redirect_url, FILTER_VALIDATE_URL) ? $adRequest->redirect_url : null);
+    }
+
+    private function resolveProductAttributionId(AdRequest $adRequest): ?int
+    {
+        $productId = $adRequest->redirect_id ?: $adRequest->product_id;
+
+        return $productId ? (int) $productId : null;
+    }
+
+    private function resolveRedirectType(AdRequest $adRequest): ?string
+    {
+        if (!empty($adRequest->redirect_type)) {
+            return $adRequest->redirect_type;
+        }
+
+        if (($adRequest->ad_type ?? null) === 'product' || $adRequest->product_id || $adRequest->redirect_id) {
+            return 'product';
+        }
+
+        if ($adRequest->shop_id) {
+            return 'shop';
+        }
+
+        if (!empty($adRequest->redirect_url)) {
+            return 'url';
+        }
+
+        return null;
     }
 
     private function calculateLegacyPrice(string $legacyAdType, int $durationDays): float

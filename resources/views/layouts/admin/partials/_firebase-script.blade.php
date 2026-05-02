@@ -1,4 +1,5 @@
 @php($fcmCredentials = getWebConfig('fcm_credentials'))
+@php($web_config = $web_config ?? [])
 <span id="Firebase_Configuration_Config" data-api-key="{{ $fcmCredentials['apiKey'] ?? '' }}"
       data-auth-domain="{{ $fcmCredentials['authDomain'] ?? '' }}"
       data-project-id="{{ $fcmCredentials['projectId'] ?? '' }}"
@@ -9,7 +10,7 @@
       data-csrf-token="{{ csrf_token() }}"
       data-route="{{ route('system.subscribeToTopic') }}"
       data-recaptcha-store="{{ route('g-recaptcha-response-store') }}"
-      data-favicon="{{ $web_config['fav_icon']['path'] }}"
+      data-favicon="{{ $web_config['fav_icon']['path'] ?? '' }}"
       data-firebase-service-worker-file="{{ dynamicAsset(path: 'firebase-messaging-sw.js') }}"
       data-firebase-service-worker-scope="{{ dynamicAsset(path: 'firebase-cloud-messaging-push-scope') }}"
 >

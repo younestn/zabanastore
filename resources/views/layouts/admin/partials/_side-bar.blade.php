@@ -561,7 +561,7 @@
             @endif
 
             @php($getEnabledThemeRoutes=0)
-            @if (count(config('get_theme_routes')) > 0)
+            @if (count(config('get_theme_routes') ?? []) > 0)
                 @foreach (config('get_theme_routes')['route_list'] as $route)
                     @if(isset($route['module_permission']) && Helpers::module_permission_check($route['module_permission']))
                         @php($getEnabledThemeRoutes++)
@@ -570,7 +570,7 @@
             @endif
 
             @if($getEnabledThemeRoutes > 0)
-                @if (count(config('get_theme_routes')) > 0)
+                @if (count(config('get_theme_routes') ?? []) > 0)
                     <li class="nav-item nav-item_title {{ (Request::is('admin/banner*') || (Request::is('admin/coupon*')) || (Request::is('admin/notification*')) || (Request::is('admin/deal*'))) ? 'scroll-here' : '' }}">
                         <small class="nav-subtitle" title="">
                             {{ config('get_theme_routes')['name'] }} {{ translate('Menu') }}
@@ -1272,7 +1272,7 @@
                 </li>
             @endif
 
-            @if(count(config('addon_admin_routes'))>0)
+            @if(count(config('addon_admin_routes') ?? [])>0)
                 <li>
                     <a class="nav-link nav-link-toggle @foreach(config('addon_admin_routes') as $routes)
                             @foreach($routes as $route)

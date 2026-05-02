@@ -64,7 +64,7 @@
                                     <div>
                                         <span class="key">{{ translate('ad_placement') }}</span>
                                         <span>:</span>
-                                        <span class="value">{{ translate($adRequest->placement ?? 'home_top') }}</span>
+                                        <span class="value">{{ translate($adRequest->placement ?? 'featured_products') }}</span>
                                     </div>
                                     <div>
                                         <span class="key">{{ translate('ad_duration') }}</span>
@@ -192,6 +192,24 @@
                                 <div class="border rounded p-3 h-100">
                                     <div class="text-muted small">{{ translate('ctr') }}</div>
                                     <div class="h4 mb-0">{{ number_format($adRequest->ctr, 2) }}%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="text-muted small">{{ translate('completed_purchases_from_ad') }}</div>
+                                    <div class="h4 mb-0">{{ number_format($adRequest->completed_purchases_count ?? 0) }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="text-muted small">{{ translate('sales_from_ad') }}</div>
+                                    <div class="h4 mb-0">{{ number_format((float) ($adRequest->completed_purchases_amount ?? 0), 2) }} DZD</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="text-muted small">{{ translate('last_purchase_at') }}</div>
+                                    <div class="h6 mb-0">{{ optional($adRequest->last_purchase_at)->format('Y-m-d H:i') ?? '-' }}</div>
                                 </div>
                             </div>
                         </div>

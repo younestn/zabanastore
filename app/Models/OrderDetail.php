@@ -60,7 +60,10 @@ class OrderDetail extends Model
         'refund_request',
         'refund_started_at',
         'variant',
-        'variation'
+        'variation',
+        'ad_request_id',
+        'ad_attribution_source',
+        'ad_purchase_counted_at',
     ];
 
     protected $casts = [
@@ -77,6 +80,8 @@ class OrderDetail extends Model
         'updated_at' => 'datetime',
         'refund_request' => 'integer',
         'refund_started_at' => 'datetime',
+        'ad_request_id' => 'integer',
+        'ad_purchase_counted_at' => 'datetime',
     ];
 
     public function product(): BelongsTo
@@ -114,6 +119,11 @@ class OrderDetail extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class, 'seller_id');
+    }
+
+    public function adRequest(): BelongsTo
+    {
+        return $this->belongsTo(AdRequest::class, 'ad_request_id');
     }
 
     public function address(): BelongsTo

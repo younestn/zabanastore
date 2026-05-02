@@ -3,6 +3,7 @@
 namespace App\Utils;
 use Illuminate\Support\Facades\Log;
 use App\Models\Wilaya;
+use App\Services\AdRequestService;
 use App\Services\ShippingOrderService;
 use App\Models\OrderDetailsRewards;
 use App\Models\ShippingMethod;
@@ -128,6 +129,11 @@ class OrderManager
     public static function getWalletManageOnOrderStatusChange($order, $received_by): void
     {
         $order = Order::find($order['id']);
+
+        if ($order) {
+            app(AdRequestService::class)->recordCompletedPurchaseFromOrder($order);
+        }
+
         $order_summary = OrderManager::getOrderTotalAndSubTotalAmountSummary($order);
         $order_amount = $order_summary['subtotal'] - $order_summary['total_discount_on_product'] - $order['discount_amount'];
         $commission = $order['admin_commission'];
@@ -1018,6 +1024,13 @@ $billingAddressData = $billingAddress
                 'created_at' => now(),
                 'updated_at' => now()
             ];
+
+            $adAttribution = app(AdRequestService::class)->resolveProductAttribution((int) $cartSingleItem['product_id']);
+
+            if ($adAttribution) {
+                $orderDetails['ad_request_id'] = $adAttribution['ad_request_id'];
+                $orderDetails['ad_attribution_source'] = $adAttribution['ad_attribution_source'];
+            }
 
             $finalAmount = $cartSingleItem['price'] * $cartSingleItem['quantity'] + $cartSingleItem['tax'] - $cartSingleItem['shipping_cost'] - $productDiscount;
             $totalPrice += $finalAmount;

@@ -147,6 +147,9 @@
                                         <div class="alert alert-soft-info mt-3 mb-0">
                                             {{ translate('price_is_set_by_admin') }}. {{ translate('duration_is_set_by_admin') }}.
                                         </div>
+                                        <div class="small text-muted mt-2">
+                                            {{ translate('ad_will_appear_after_admin_approval') }} {{ translate('appears_in_featured_products') }}.
+                                        </div>
                                     </div>
                                 </div>
 

@@ -43,6 +43,7 @@
                         <div class="carousel-wrap p-1">
                             <div class="owl-carousel owl-theme" id="featured_products_list"
                                  data-loop="{{ count($featuredProductsList) > 6 ? 'true' : 'false' }}">
+                                @include('web-views.partials._featured-product-vendor-ads', ['featuredProductAds' => $featuredProductAds ?? collect()])
                                 @foreach($featuredProductsList as $product)
                                     <div>
                                         @include('web-views.partials._feature-product',['product'=>$product, 'decimal_point_settings'=>$decimalPointSettings])
@@ -226,7 +227,33 @@
 @endsection
 
 @push('script')
+    <script>
+        function postVendorAdMetric(url) {
+            if (!url) return;
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                body: JSON.stringify({source: 'web'})
+            }).catch(() => {});
+        }
+
+        function trackVendorAdClick(event, url, redirectUrl) {
+            event.preventDefault();
+            postVendorAdMetric(url);
+            if (redirectUrl && redirectUrl !== 'javascript:') {
+                window.location.href = redirectUrl;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-impression-url]').forEach(function (element) {
+                postVendorAdMetric(element.getAttribute('data-impression-url'));
+            });
+        });
+    </script>
+@endpush
+
+@push('script')
     <script src="{{theme_asset(path: 'public/assets/front-end/js/owl.carousel.min.js')}}"></script>
     <script src="{{ theme_asset(path: 'public/assets/front-end/js/home.js') }}"></script>
 @endpush
-

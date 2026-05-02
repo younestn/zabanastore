@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return [
 	"want_to_remove_country_name" => "هل تريد إزالة اسم الدولة؟",
@@ -672,4 +672,19 @@ return [
 	"view_details" => "عرض التفاصيل",
 	"ad_details" => "تفاصيل الإعلان",
 	"pricing_plan_disabled_because_it_is_already_used" => "هذه الباقة مستخدمة بالفعل وتم تعطيلها بدلاً من حذفها",
+	"successfully_deleted" => "Successfully deleted",
+	"disable" => "Disable",
+	"featured_products" => "المنتجات المميزة",
+	"ad" => "إعلان",
+	"sponsored" => "ممـول",
+	"featured_products_ad" => "إعلان داخل قسم المنتجات المميزة",
+	"classic_home_banner" => "بانر الصفحة الرئيسية الكلاسيكي",
+	"appears_in_featured_products" => "يظهر داخل قسم المنتجات المميزة",
+	"ad_will_appear_after_admin_approval" => "سيظهر إعلانك بعد موافقة الإدارة",
+	"ad_appears_first_in_featured_products" => "يظهر الإعلان أولاً في قسم المنتجات المميزة",
+	"home_banner_classic" => "Home banner classic",
+	"completed_purchases_from_ad" => "عمليات الشراء المكتملة من الإعلان",
+	"sales_from_ad" => "مبيعات الإعلان",
+	"last_purchase_at" => "آخر عملية شراء",
 ];
+
